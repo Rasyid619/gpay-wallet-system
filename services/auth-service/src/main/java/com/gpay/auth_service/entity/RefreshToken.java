@@ -58,4 +58,23 @@ public class RefreshToken {
 		token.createdAt = createdAt;
 		return token;
 	}
+
+	/**
+	 * Marks this token as revoked at the given timestamp.
+	 *
+	 * @param revokedAt revocation timestamp
+	 */
+	public void revoke(Instant revokedAt) {
+		this.revokedAt = revokedAt;
+	}
+
+	/** Returns true when this token has been explicitly revoked. */
+	public boolean isRevoked() {
+		return revokedAt != null;
+	}
+
+	/** Returns true when this token is past its expiration time. */
+	public boolean isExpired() {
+		return Instant.now().isAfter(expiresAt);
+	}
 }

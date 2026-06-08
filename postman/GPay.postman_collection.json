@@ -240,6 +240,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has access_token and refresh_token', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.access_token).to.be.a('string');",
+                  "  pm.expect(body.refresh_token).to.be.a('string');",
+                  "});",
                   "if (pm.response.code === 200) {",
                   "  const body = pm.response.json();",
                   "  pm.collectionVariables.set('access_token', body.access_token);",
@@ -263,7 +269,41 @@
               "mode": "raw",
               "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
             },
-            "description": "Exchange a valid refresh token for a new access token and refresh token."
+            "description": "Exchange a valid refresh token for a new access token and refresh token (token rotation). The old refresh token is revoked. Tokens are auto-saved to collection variables."
+          }
+        },
+        {
+          "name": "Refresh Token — Invalid Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error is UNAUTHORIZED', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('UNAUTHORIZED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/refresh",
+              "host": ["{{auth_url}}"],
+              "path": ["auth", "refresh"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"invalid-or-unknown-token-value\"\n}"
+            },
+            "description": "Expected: 401 Unauthorized when refresh token is unknown, expired, or revoked."
           }
         },
         {

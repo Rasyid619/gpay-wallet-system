@@ -2,6 +2,7 @@ package com.gpay.auth_service.controller;
 
 import com.gpay.auth_service.dto.LoginRequest;
 import com.gpay.auth_service.dto.LoginResponse;
+import com.gpay.auth_service.dto.RefreshRequest;
 import com.gpay.auth_service.dto.RegisterRequest;
 import com.gpay.auth_service.dto.RegisterResponse;
 import com.gpay.auth_service.dto.UserMeResponse;
@@ -41,5 +42,10 @@ public class AuthController {
 	@PostMapping("/login")
 	public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
 		return ResponseEntity.ok(authService.login(request));
+	}
+
+	@PostMapping("/refresh")
+	public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+		return ResponseEntity.ok(authService.refresh(request));
 	}
 }
