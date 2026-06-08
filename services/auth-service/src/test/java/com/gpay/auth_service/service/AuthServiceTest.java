@@ -62,10 +62,10 @@ class AuthServiceTest {
 		@Test
 		void returnsCreatedUserOnValidRequest() {
 			when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
-			when(passwordEncoder.encode("password123")).thenReturn("$2a$hashed");
+			when(passwordEncoder.encode("Password1!")).thenReturn("$2a$hashed");
 			when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-			RegisterResponse response = authService.register(new RegisterRequest("new@example.com", "password123"));
+			RegisterResponse response = authService.register(new RegisterRequest("new@example.com", "Password1!"));
 
 			assertThat(response.email()).isEqualTo("new@example.com");
 			assertThat(response.userId()).isNotNull();
@@ -79,7 +79,7 @@ class AuthServiceTest {
 			User existing = User.create(existingId, "taken@example.com", "$2a$hash", UserRole.USER, Instant.now(), Instant.now());
 			when(userRepository.findByEmail("taken@example.com")).thenReturn(Optional.of(existing));
 
-			assertThatThrownBy(() -> authService.register(new RegisterRequest("taken@example.com", "password123")))
+			assertThatThrownBy(() -> authService.register(new RegisterRequest("taken@example.com", "Password1!")))
 					.isInstanceOf(ConflictException.class)
 					.hasMessageContaining("already registered");
 
@@ -89,12 +89,12 @@ class AuthServiceTest {
 		@Test
 		void passwordIsHashedBeforeSaving() {
 			when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
-			when(passwordEncoder.encode("password123")).thenReturn("$2a$hashed");
+			when(passwordEncoder.encode("Password1!")).thenReturn("$2a$hashed");
 			when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-			authService.register(new RegisterRequest("new@example.com", "password123"));
+			authService.register(new RegisterRequest("new@example.com", "Password1!"));
 
-			verify(passwordEncoder).encode("password123");
+			verify(passwordEncoder).encode("Password1!");
 		}
 	}
 
