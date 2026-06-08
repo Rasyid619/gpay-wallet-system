@@ -2,8 +2,11 @@ package com.gpay.auth_service.controller;
 
 import com.gpay.auth_service.dto.LoginRequest;
 import com.gpay.auth_service.dto.LoginResponse;
+import com.gpay.auth_service.dto.RegisterRequest;
+import com.gpay.auth_service.dto.RegisterResponse;
 import com.gpay.auth_service.service.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,6 +22,11 @@ public class AuthController {
 
 	public AuthController(AuthService authService) {
 		this.authService = authService;
+	}
+
+	@PostMapping("/register")
+	public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+		return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
 	}
 
 	@PostMapping("/login")

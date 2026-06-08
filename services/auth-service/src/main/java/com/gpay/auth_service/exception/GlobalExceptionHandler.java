@@ -17,6 +17,12 @@ public class GlobalExceptionHandler {
 				.body(Map.of("error", "UNAUTHORIZED", "message", ex.getMessage()));
 	}
 
+	@ExceptionHandler(ConflictException.class)
+	public ResponseEntity<Map<String, String>> handleConflict(ConflictException ex) {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(Map.of("error", "EMAIL_ALREADY_REGISTERED", "message", ex.getMessage()));
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
 		String message = ex.getBindingResult()
