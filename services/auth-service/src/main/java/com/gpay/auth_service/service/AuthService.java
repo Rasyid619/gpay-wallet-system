@@ -2,6 +2,7 @@ package com.gpay.auth_service.service;
 
 import com.gpay.auth_service.dto.LoginRequest;
 import com.gpay.auth_service.dto.LoginResponse;
+import com.gpay.auth_service.dto.RefreshRequest;
 import com.gpay.auth_service.dto.RegisterRequest;
 import com.gpay.auth_service.dto.RegisterResponse;
 import com.gpay.auth_service.dto.UserMeResponse;
@@ -13,6 +14,7 @@ import com.gpay.auth_service.exception.NotFoundException;
 import com.gpay.auth_service.exception.UnauthorizedException;
 import com.gpay.auth_service.repository.RefreshTokenRepository;
 import com.gpay.auth_service.repository.UserRepository;
+import com.gpay.auth_service.security.HashUtil;
 import com.gpay.auth_service.security.JwtService;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -102,7 +104,7 @@ public class AuthService {
 
 		String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail());
 		String rawRefreshToken = generateRawRefreshToken();
-		String tokenHash = passwordEncoder.encode(rawRefreshToken);
+		String tokenHash = HashUtil.sha256(rawRefreshToken);
 
 		Instant now = Instant.now();
 		Instant expiresAt = now.plus(refreshTokenExpirationDays, ChronoUnit.DAYS);
@@ -116,5 +118,46 @@ public class AuthService {
 		byte[] bytes = new byte[32];
 		SECURE_RANDOM.nextBytes(bytes);
 		return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+	}
+
+	/**
+	 * Validates the submitted refresh token and issues a new token pair (rotation).
+	 *
+	 * <p>The old refresh token is revoked and a new one is issued atomically.
+	 *
+	 * @param request refresh token payload
+	 * @return new access token and refresh token pair
+	 * @throws UnauthorizedException if the token is unknown, expired, or revoked
+	 */
+	@Transactional
+	public LoginResponse refresh(RefreshRequest request) {
+		String tokenHash = HashUtil.sha256(request.refreshToken());
+
+		RefreshToken stored = refreshTokenRepository.findByTokenHash(tokenHash)
+				.orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+
+		if (stored.isRevoked()) {
+			throw new UnauthorizedException("Refresh token has been revoked");
+		}
+		if (stored.isExpired()) {
+			throw new UnauthorizedException("Refresh token has expired");
+		}
+
+		// Revoke old token (rotation)
+		stored.revoke(Instant.now());
+		refreshTokenRepository.save(stored);
+
+		// Issue new token pair
+		User user = stored.getUser();
+		String newAccessToken = jwtService.generateAccessToken(user.getId(), user.getEmail());
+		String newRawRefreshToken = generateRawRefreshToken();
+		String newTokenHash = HashUtil.sha256(newRawRefreshToken);
+
+		Instant now = Instant.now();
+		Instant expiresAt = now.plus(refreshTokenExpirationDays, ChronoUnit.DAYS);
+		RefreshToken newToken = RefreshToken.create(UUID.randomUUID(), user, newTokenHash, expiresAt, now);
+		refreshTokenRepository.save(newToken);
+
+		return new LoginResponse(newAccessToken, newRawRefreshToken);
 	}
 }
