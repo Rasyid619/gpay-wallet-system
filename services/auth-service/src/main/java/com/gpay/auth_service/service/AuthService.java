@@ -4,10 +4,12 @@ import com.gpay.auth_service.dto.LoginRequest;
 import com.gpay.auth_service.dto.LoginResponse;
 import com.gpay.auth_service.dto.RegisterRequest;
 import com.gpay.auth_service.dto.RegisterResponse;
+import com.gpay.auth_service.dto.UserMeResponse;
 import com.gpay.auth_service.entity.RefreshToken;
 import com.gpay.auth_service.entity.User;
 import com.gpay.auth_service.entity.UserRole;
 import com.gpay.auth_service.exception.ConflictException;
+import com.gpay.auth_service.exception.NotFoundException;
 import com.gpay.auth_service.exception.UnauthorizedException;
 import com.gpay.auth_service.repository.RefreshTokenRepository;
 import com.gpay.auth_service.repository.UserRepository;
@@ -45,6 +47,20 @@ public class AuthService {
 		this.jwtService = jwtService;
 		this.passwordEncoder = passwordEncoder;
 		this.refreshTokenExpirationDays = refreshTokenExpirationDays;
+	}
+
+	/**
+	 * Returns the profile of the authenticated user.
+	 *
+	 * @param userId authenticated user's identifier from the JWT subject
+	 * @return user profile without sensitive fields
+	 * @throws NotFoundException if the user no longer exists
+	 */
+	@Transactional(readOnly = true)
+	public UserMeResponse getMe(UUID userId) {
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new NotFoundException("User not found"));
+		return new UserMeResponse(user.getId(), user.getEmail(), user.getRole().name(), user.getCreatedAt());
 	}
 
 	/**

@@ -4,10 +4,14 @@ import com.gpay.auth_service.dto.LoginRequest;
 import com.gpay.auth_service.dto.LoginResponse;
 import com.gpay.auth_service.dto.RegisterRequest;
 import com.gpay.auth_service.dto.RegisterResponse;
+import com.gpay.auth_service.dto.UserMeResponse;
 import com.gpay.auth_service.service.AuthService;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +26,11 @@ public class AuthController {
 
 	public AuthController(AuthService authService) {
 		this.authService = authService;
+	}
+
+	@GetMapping("/me")
+	public ResponseEntity<UserMeResponse> getMe(@AuthenticationPrincipal UUID userId) {
+		return ResponseEntity.ok(authService.getMe(userId));
 	}
 
 	@PostMapping("/register")

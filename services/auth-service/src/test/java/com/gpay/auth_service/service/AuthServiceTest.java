@@ -12,10 +12,12 @@ import com.gpay.auth_service.dto.LoginRequest;
 import com.gpay.auth_service.dto.LoginResponse;
 import com.gpay.auth_service.dto.RegisterRequest;
 import com.gpay.auth_service.dto.RegisterResponse;
+import com.gpay.auth_service.dto.UserMeResponse;
 import com.gpay.auth_service.entity.RefreshToken;
 import com.gpay.auth_service.entity.User;
 import com.gpay.auth_service.entity.UserRole;
 import com.gpay.auth_service.exception.ConflictException;
+import com.gpay.auth_service.exception.NotFoundException;
 import com.gpay.auth_service.exception.UnauthorizedException;
 import com.gpay.auth_service.repository.RefreshTokenRepository;
 import com.gpay.auth_service.repository.UserRepository;
@@ -32,7 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
- * Unit tests for {@link AuthService} register and login behavior.
+ * Unit tests for {@link AuthService} register, login, and getMe behavior.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -162,6 +164,34 @@ class AuthServiceTest {
 			assertThat(response.refreshToken()).isNotEqualTo("$2a$refresh_hash");
 			// Password encoder encode was called to hash the raw token
 			verify(passwordEncoder).encode(response.refreshToken());
+		}
+	}
+
+	@Nested
+	class GetMe {
+
+		@Test
+		void returnsUserProfileForValidId() {
+			UUID userId = UUID.randomUUID();
+			User user = User.create(userId, "user@example.com", "$2a$hashed", UserRole.USER, Instant.now(), Instant.now());
+			when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+			UserMeResponse response = authService.getMe(userId);
+
+			assertThat(response.userId()).isEqualTo(userId);
+			assertThat(response.email()).isEqualTo("user@example.com");
+			assertThat(response.role()).isEqualTo("USER");
+			assertThat(response.createdAt()).isNotNull();
+		}
+
+		@Test
+		void throwsNotFoundWhenUserDoesNotExist() {
+			UUID userId = UUID.randomUUID();
+			when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+			assertThatThrownBy(() -> authService.getMe(userId))
+					.isInstanceOf(NotFoundException.class)
+					.hasMessageContaining("User not found");
 		}
 	}
 }
