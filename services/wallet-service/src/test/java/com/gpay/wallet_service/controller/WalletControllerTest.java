@@ -1,5 +1,7 @@
 package com.gpay.wallet_service.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -8,29 +10,34 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.gpay.wallet_service.config.SecurityConfig;
 import com.gpay.wallet_service.dto.WalletBalanceResponse;
+import com.gpay.wallet_service.dto.WalletMutationPageResponse;
+import com.gpay.wallet_service.dto.WalletMutationResponse;
 import com.gpay.wallet_service.exception.GlobalExceptionHandler;
 import com.gpay.wallet_service.exception.WalletNotFoundException;
 import com.gpay.wallet_service.security.JwtAuthFilter;
 import com.gpay.wallet_service.security.JwtService;
 import com.gpay.wallet_service.service.WalletBalanceService;
+import com.gpay.wallet_service.service.WalletMutationService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import javax.crypto.SecretKey;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * MVC tests for authenticated wallet balance access.
+ * MVC tests for authenticated wallet endpoint access.
  */
 @WebMvcTest(WalletController.class)
 @Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class})
@@ -44,6 +51,9 @@ class WalletControllerTest {
 
 	@MockitoBean
 	private WalletBalanceService walletBalanceService;
+
+	@MockitoBean
+	private WalletMutationService walletMutationService;
 
 	@Test
 	void returnsBalanceForAuthenticatedUser() throws Exception {
@@ -86,6 +96,56 @@ class WalletControllerTest {
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.error").value("WALLET_NOT_FOUND"))
 				.andExpect(jsonPath("$.message").value("Wallet was not found for authenticated user"));
+	}
+
+	@Test
+	void returnsPaginatedMutationsForAuthenticatedUser() throws Exception {
+		UUID userId = UUID.randomUUID();
+		UUID mutationId = UUID.randomUUID();
+		UUID transactionId = UUID.randomUUID();
+		Instant createdAt = Instant.parse("2026-06-09T02:15:30Z");
+		WalletMutationResponse mutation = new WalletMutationResponse(
+				mutationId,
+				"CREDIT",
+				"TOP_UP",
+				50000L,
+				150000L,
+				transactionId,
+				createdAt);
+		when(walletMutationService.getMutations(eq(userId), any(Pageable.class)))
+				.thenReturn(new WalletMutationPageResponse(1, 2, 3L, 2, List.of(mutation)));
+
+		mockMvc.perform(get("/wallets/mutations?page=1&size=2")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(userId)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.page").value(1))
+				.andExpect(jsonPath("$.size").value(2))
+				.andExpect(jsonPath("$.total_items").value(3))
+				.andExpect(jsonPath("$.total_pages").value(2))
+				.andExpect(jsonPath("$.items[0].mutation_id").value(mutationId.toString()))
+				.andExpect(jsonPath("$.items[0].type").value("CREDIT"))
+				.andExpect(jsonPath("$.items[0].source").value("TOP_UP"))
+				.andExpect(jsonPath("$.items[0].amount").value(50000))
+				.andExpect(jsonPath("$.items[0].balance_after").value(150000))
+				.andExpect(jsonPath("$.items[0].related_transaction_id").value(transactionId.toString()))
+				.andExpect(jsonPath("$.items[0].created_at").value("2026-06-09T02:15:30Z"));
+	}
+
+	@Test
+	void returnsUnauthorizedForMutationsWhenTokenIsMissing() throws Exception {
+		mockMvc.perform(get("/wallets/mutations"))
+				.andExpect(status().isUnauthorized());
+
+		verifyNoInteractions(walletMutationService);
+	}
+
+	@Test
+	void returnsUnauthorizedForMutationsWhenTokenIsInvalid() throws Exception {
+		mockMvc.perform(get("/wallets/mutations")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here"))
+				.andExpect(status().isUnauthorized());
+
+		verifyNoInteractions(walletMutationService);
 	}
 
 	private String createToken(UUID userId) {
