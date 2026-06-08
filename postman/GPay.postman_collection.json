@@ -268,6 +268,29 @@
         },
         {
           "name": "Get Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has user_id, email, role, created_at', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.user_id).to.be.a('string');",
+                  "  pm.expect(body.email).to.be.a('string');",
+                  "  pm.expect(body.role).to.be.a('string');",
+                  "  pm.expect(body.created_at).to.be.a('string');",
+                  "});",
+                  "pm.test('Password hash is not exposed', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.not.have.property('password_hash');",
+                  "  pm.expect(body).to.not.have.property('password');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -278,7 +301,57 @@
               "host": ["{{auth_url}}"],
               "path": ["auth", "me"]
             },
-            "description": "Returns the authenticated user's profile. Requires a valid access token."
+            "description": "Returns the authenticated user's profile (user_id, email, role, created_at). Requires a valid Bearer access token."
+          }
+        },
+        {
+          "name": "Get Current User — No Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_url}}/auth/me",
+              "host": ["{{auth_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Expected: 401 Unauthorized when Authorization header is missing."
+          }
+        },
+        {
+          "name": "Get Current User — Invalid Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer invalid.token.here" }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/me",
+              "host": ["{{auth_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Expected: 401 Unauthorized when token is invalid or expired."
           }
         }
       ]

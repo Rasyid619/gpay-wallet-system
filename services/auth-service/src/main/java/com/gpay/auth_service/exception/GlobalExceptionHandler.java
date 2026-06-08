@@ -23,6 +23,12 @@ public class GlobalExceptionHandler {
 				.body(Map.of("error", "EMAIL_ALREADY_REGISTERED", "message", ex.getMessage()));
 	}
 
+	@ExceptionHandler(NotFoundException.class)
+	public ResponseEntity<Map<String, String>> handleNotFound(NotFoundException ex) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.body(Map.of("error", "NOT_FOUND", "message", ex.getMessage()));
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
 		String message = ex.getBindingResult()
