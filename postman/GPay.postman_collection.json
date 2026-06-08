@@ -479,6 +479,102 @@
             },
             "description": "Expected: 401 Unauthorized when token is invalid or expired."
           }
+        },
+        {
+          "name": "Get Wallet Mutations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is paginated mutation history', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.page).to.be.a('number');",
+                  "  pm.expect(body.size).to.be.a('number');",
+                  "  pm.expect(body.total_items).to.be.a('number');",
+                  "  pm.expect(body.total_pages).to.be.a('number');",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/mutations?page=0&size=20",
+              "host": ["{{wallet_url}}"],
+              "path": ["wallets", "mutations"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Returns paginated wallet mutation history for the authenticated user's wallet only, newest first."
+          }
+        },
+        {
+          "name": "Get Wallet Mutations — No Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/mutations?page=0&size=20",
+              "host": ["{{wallet_url}}"],
+              "path": ["wallets", "mutations"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Expected: 401 Unauthorized when Authorization header is missing."
+          }
+        },
+        {
+          "name": "Get Wallet Mutations — Invalid Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer invalid.token.here" }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/mutations?page=0&size=20",
+              "host": ["{{wallet_url}}"],
+              "path": ["wallets", "mutations"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Expected: 401 Unauthorized when token is invalid or expired."
+          }
         }
       ]
     }
