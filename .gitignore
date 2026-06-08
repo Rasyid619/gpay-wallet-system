@@ -1,0 +1,27 @@
+# Java / Gradle
+build/
+.gradle/
+target/
+*.class
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+
+# Environment
+.env
+
+# Logs
+*.log
+
+# Docker volumes
+docker-data/
+
+# Codex / agent local guidance
+AGENTS.md
+CODEX.java.md
