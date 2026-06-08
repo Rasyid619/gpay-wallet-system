@@ -395,6 +395,92 @@
           }
         }
       ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Get Wallet Balance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has wallet_id and balance', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.wallet_id).to.be.a('string');",
+                  "  pm.expect(body.balance).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/balance",
+              "host": ["{{wallet_url}}"],
+              "path": ["wallets", "balance"]
+            },
+            "description": "Returns the authenticated user's wallet balance as whole IDR. Requires a valid Bearer access token."
+          }
+        },
+        {
+          "name": "Get Wallet Balance — No Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/balance",
+              "host": ["{{wallet_url}}"],
+              "path": ["wallets", "balance"]
+            },
+            "description": "Expected: 401 Unauthorized when Authorization header is missing."
+          }
+        },
+        {
+          "name": "Get Wallet Balance — Invalid Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer invalid.token.here" }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/balance",
+              "host": ["{{wallet_url}}"],
+              "path": ["wallets", "balance"]
+            },
+            "description": "Expected: 401 Unauthorized when token is invalid or expired."
+          }
+        }
+      ]
     }
   ]
 }
