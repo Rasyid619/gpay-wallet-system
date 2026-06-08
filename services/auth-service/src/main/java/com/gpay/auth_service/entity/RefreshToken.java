@@ -9,8 +9,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Getter;
 
 /* Persisted refresh token hash for access-token renewal. */
+@Getter
 @Entity
 @Table(name = "refresh_tokens")
 public class RefreshToken {
@@ -36,5 +38,24 @@ public class RefreshToken {
 	private Instant createdAt;
 
 	protected RefreshToken() {
+	}
+
+	/**
+	 * Creates a new refresh token record.
+	 *
+	 * @param id        unique identifier
+	 * @param user      owning user
+	 * @param tokenHash BCrypt hash of the raw token
+	 * @param expiresAt expiration timestamp
+	 * @param createdAt creation timestamp
+	 */
+	public static RefreshToken create(UUID id, User user, String tokenHash, Instant expiresAt, Instant createdAt) {
+		RefreshToken token = new RefreshToken();
+		token.id = id;
+		token.user = user;
+		token.tokenHash = tokenHash;
+		token.expiresAt = expiresAt;
+		token.createdAt = createdAt;
+		return token;
 	}
 }
