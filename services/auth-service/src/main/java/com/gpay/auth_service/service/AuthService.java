@@ -2,8 +2,12 @@ package com.gpay.auth_service.service;
 
 import com.gpay.auth_service.dto.LoginRequest;
 import com.gpay.auth_service.dto.LoginResponse;
+import com.gpay.auth_service.dto.RegisterRequest;
+import com.gpay.auth_service.dto.RegisterResponse;
 import com.gpay.auth_service.entity.RefreshToken;
 import com.gpay.auth_service.entity.User;
+import com.gpay.auth_service.entity.UserRole;
+import com.gpay.auth_service.exception.ConflictException;
 import com.gpay.auth_service.exception.UnauthorizedException;
 import com.gpay.auth_service.repository.RefreshTokenRepository;
 import com.gpay.auth_service.repository.UserRepository;
@@ -41,6 +45,27 @@ public class AuthService {
 		this.jwtService = jwtService;
 		this.passwordEncoder = passwordEncoder;
 		this.refreshTokenExpirationDays = refreshTokenExpirationDays;
+	}
+
+	/**
+	 * Registers a new user account.
+	 *
+	 * @param request registration details
+	 * @return created user summary
+	 * @throws ConflictException if email is already registered
+	 */
+	@Transactional
+	public RegisterResponse register(RegisterRequest request) {
+		if (userRepository.findByEmail(request.email()).isPresent()) {
+			throw new ConflictException("Email is already registered");
+		}
+
+		Instant now = Instant.now();
+		String passwordHash = passwordEncoder.encode(request.password());
+		User user = User.create(UUID.randomUUID(), request.email(), passwordHash, UserRole.USER, now, now);
+		userRepository.save(user);
+
+		return new RegisterResponse(user.getId(), user.getEmail(), user.getCreatedAt());
 	}
 
 	/**

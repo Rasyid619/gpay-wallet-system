@@ -43,6 +43,23 @@
       "item": [
         {
           "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response has user_id and email', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.user_id).to.be.a('string');",
+                  "  pm.expect(body.email).to.be.a('string');",
+                  "  pm.expect(body.created_at).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -57,7 +74,109 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
             },
-            "description": "Register a new user. Returns 201 Created on success, 409 Conflict on duplicate email."
+            "description": "Register a new user. Returns 201 Created with user_id, email, and created_at. Password is never returned."
+          }
+        },
+        {
+          "name": "Register — Duplicate Email (expect 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error code is EMAIL_ALREADY_REGISTERED', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('EMAIL_ALREADY_REGISTERED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/register",
+              "host": ["{{auth_url}}"],
+              "path": ["auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "Expected: 409 Conflict with error EMAIL_ALREADY_REGISTERED when email is already taken."
+          }
+        },
+        {
+          "name": "Register — Invalid Email (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is VALIDATION_ERROR', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/register",
+              "host": ["{{auth_url}}"],
+              "path": ["auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "Expected: 400 Bad Request with error VALIDATION_ERROR when email format is invalid."
+          }
+        },
+        {
+          "name": "Register — Weak Password (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is VALIDATION_ERROR', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/register",
+              "host": ["{{auth_url}}"],
+              "path": ["auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user2@example.com\",\n  \"password\": \"weakpass\"\n}"
+            },
+            "description": "Expected: 400 Bad Request when password lacks uppercase, digit, or special character."
           }
         },
         {
