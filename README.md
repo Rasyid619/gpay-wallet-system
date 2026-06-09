@@ -186,6 +186,7 @@ PAYMENT_WALLET_CREDIT_URL
 PAYMENT_WALLET_INTERNAL_TOKEN
 PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS
 PAYMENT_OUTBOX_RETRY_DELAY_MS
+PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS
 PAYMENT_OUTBOX_BATCH_SIZE
 PAYMENT_OUTBOX_WORKER_FIXED_DELAY_MS
 PAYMENT_OUTBOX_WORKER_INITIAL_DELAY_MS
@@ -214,7 +215,8 @@ Successful gateway callbacks create one pending wallet-credit outbox event in
 `/internal/wallets/credit`, and `PAYMENT_WALLET_INTERNAL_TOKEN` must match
 Wallet Service's `WALLET_INTERNAL_TOKEN`. The payment outbox worker sends this
 token with each wallet-credit delivery and uses durable payment outbox event IDs
-for wallet idempotency.
+for wallet idempotency. `PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS` controls when a
+stuck `PROCESSING` outbox event is moved back to retryable `PENDING` state.
 
 ## Running Services
 
@@ -243,6 +245,7 @@ PAYMENT_WALLET_CREDIT_URL=http://localhost:8082/internal/wallets/credit \
 PAYMENT_WALLET_INTERNAL_TOKEN=dev-internal-token-change-me \
 PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS=5000 \
 PAYMENT_OUTBOX_RETRY_DELAY_MS=60000 \
+PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS=300000 \
 PAYMENT_OUTBOX_BATCH_SIZE=10 \
 PAYMENT_OUTBOX_WORKER_FIXED_DELAY_MS=5000 \
 PAYMENT_OUTBOX_WORKER_INITIAL_DELAY_MS=5000 \

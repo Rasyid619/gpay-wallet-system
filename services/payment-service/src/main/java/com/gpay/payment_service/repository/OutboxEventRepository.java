@@ -31,6 +31,20 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
 			Instant now,
 			Pageable pageable);
 
+	@Query("""
+			SELECT event
+			FROM OutboxEvent event
+			WHERE event.eventType = :eventType
+				AND event.status = :status
+				AND event.updatedAt <= :staleBefore
+			ORDER BY event.updatedAt ASC
+			""")
+	List<OutboxEvent> findStaleProcessingEvents(
+			OutboxEventType eventType,
+			OutboxEventStatus status,
+			Instant staleBefore,
+			Pageable pageable);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<OutboxEvent> findLockedById(UUID id);
 }

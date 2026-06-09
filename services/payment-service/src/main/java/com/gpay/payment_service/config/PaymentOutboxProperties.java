@@ -14,6 +14,7 @@ public record PaymentOutboxProperties(
 		@NotBlank String walletInternalToken,
 		@NotNull @Positive Long requestTimeoutMs,
 		@NotNull @Positive Long retryDelayMs,
+		@NotNull @Positive Long processingTimeoutMs,
 		@NotNull @Positive Integer batchSize,
 		@NotNull @Positive Long workerFixedDelayMs,
 		@NotNull @Positive Long workerInitialDelayMs) {

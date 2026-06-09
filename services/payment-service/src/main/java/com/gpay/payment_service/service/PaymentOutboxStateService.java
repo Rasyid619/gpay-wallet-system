@@ -55,6 +55,16 @@ public class PaymentOutboxStateService {
 		event.markFailedAttempt(error, now.plusMillis(retryDelayMs), now);
 	}
 
+	@Transactional
+	public void recoverStaleProcessing(UUID eventId, Instant staleBefore) {
+		OutboxEvent event = outboxEventRepository.findLockedById(eventId).orElseThrow();
+		if (event.getStatus() != OutboxEventStatus.PROCESSING || event.getUpdatedAt().isAfter(staleBefore)) {
+			return;
+		}
+		Instant now = Instant.now();
+		event.markFailedAttempt("Outbox processing timed out before completion", now, now);
+	}
+
 	private WalletCreditOutboxPayload readPayload(String payload) {
 		try {
 			return objectMapper.readValue(payload, WalletCreditOutboxPayload.class);

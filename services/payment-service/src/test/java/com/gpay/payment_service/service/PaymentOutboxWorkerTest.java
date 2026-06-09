@@ -32,6 +32,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 		"payment.outbox.wallet-internal-token=test-internal-token",
 		"payment.outbox.request-timeout-ms=5000",
 		"payment.outbox.retry-delay-ms=60000",
+		"payment.outbox.processing-timeout-ms=300000",
 		"payment.outbox.batch-size=10",
 		"payment.outbox.worker-fixed-delay-ms=3600000",
 		"payment.outbox.worker-initial-delay-ms=3600000"
@@ -90,6 +91,26 @@ class PaymentOutboxWorkerTest {
 		assertThat(updated.getRetryCount()).isEqualTo(1);
 		assertThat(updated.getLastError()).isEqualTo("wallet service unavailable");
 		assertThat(updated.getNextRetryAt()).isAfter(Instant.now());
+	}
+
+	@Test
+	void staleProcessingEventIsRecoveredAndDelivered() {
+		TopupTransaction transaction = pendingTransaction("trace-stale-processing");
+		OutboxEvent event = pendingOutboxEvent(transaction);
+		event.markProcessing(Instant.now().minusSeconds(600));
+		outboxEventRepository.saveAndFlush(event);
+
+		paymentOutboxWorker.processPendingWalletCredits();
+
+		verify(walletCreditClient).creditWallet(
+				any(WalletCreditOutboxPayload.class),
+				eq("payment-outbox-" + event.getId()),
+				eq("trace-stale-processing"));
+		OutboxEvent updated = outboxEventRepository.findById(event.getId()).orElseThrow();
+		assertThat(updated.getStatus().name()).isEqualTo("PROCESSED");
+		assertThat(updated.getRetryCount()).isEqualTo(1);
+		assertThat(updated.getLastError()).isNull();
+		assertThat(updated.getNextRetryAt()).isNull();
 	}
 
 	private TopupTransaction pendingTransaction(String traceId) {

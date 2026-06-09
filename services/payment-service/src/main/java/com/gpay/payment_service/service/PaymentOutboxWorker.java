@@ -29,9 +29,25 @@ public class PaymentOutboxWorker {
 			fixedDelayString = "${payment.outbox.worker-fixed-delay-ms}",
 			initialDelayString = "${payment.outbox.worker-initial-delay-ms}")
 	public void processPendingWalletCredits() {
+		recoverStaleProcessingEvents();
 		List<UUID> dueEventIds = findDueEventIds();
 		for (UUID eventId : dueEventIds) {
 			processEvent(eventId);
+		}
+	}
+
+	private void recoverStaleProcessingEvents() {
+		Instant staleBefore = Instant.now().minusMillis(properties.processingTimeoutMs());
+		List<UUID> staleEventIds = outboxEventRepository.findStaleProcessingEvents(
+						OutboxEventType.CREDIT_WALLET_REQUESTED,
+						OutboxEventStatus.PROCESSING,
+						staleBefore,
+						PageRequest.of(0, properties.batchSize()))
+				.stream()
+				.map(OutboxEvent::getId)
+				.toList();
+		for (UUID eventId : staleEventIds) {
+			paymentOutboxStateService.recoverStaleProcessing(eventId, staleBefore);
 		}
 	}
 
