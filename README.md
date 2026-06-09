@@ -179,12 +179,20 @@ WALLET_DB_PASSWORD
 WALLET_DB_URL
 WALLET_DB_USERNAME
 WALLET_INTERNAL_TOKEN
+PAYMENT_WEBHOOK_URL
+GATEWAY_WEBHOOK_SECRET
+MOCK_GATEWAY_TIMEOUT_DELAY_MS
 ```
 
 `WALLET_INTERNAL_TOKEN` protects internal wallet-service endpoints such as
 `POST /internal/wallets/credit`. Set the same value in wallet-service runtime
 configuration and in trusted service-to-service clients. For local Postman
 testing, set the collection variable `internal_token` to the same value.
+
+`GATEWAY_WEBHOOK_SECRET` signs mock-gateway callbacks to Payment Service using
+`HMAC_SHA256(secret, timestamp + "." + rawRequestBody)`. `PAYMENT_WEBHOOK_URL`
+must be configured before using Mock Gateway `SUCCESS` or `FAILED` mode.
+`MOCK_GATEWAY_TIMEOUT_DELAY_MS` controls the `TIMEOUT` mode delay.
 
 ## Running Services
 

@@ -88,6 +88,7 @@
           "request": {
             "method": "POST",
             "header": [
+              { "key": "X-Trace-Id", "value": "trace-mock-success-{{$guid}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -1046,7 +1047,7 @@
               "mode": "raw",
               "raw": "{\n  \"payment_transaction_id\": \"{{$guid}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"mode\": \"SUCCESS\"\n}"
             },
-            "description": "Simulates a successful top-up response from the mock gateway."
+            "description": "Simulates a successful top-up response from the mock gateway and sends a signed webhook callback. Start mock-gateway-service with PAYMENT_WEBHOOK_URL and GATEWAY_WEBHOOK_SECRET configured."
           }
         },
         {
@@ -1071,6 +1072,7 @@
           "request": {
             "method": "POST",
             "header": [
+              { "key": "X-Trace-Id", "value": "trace-mock-failed-{{$guid}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -1082,7 +1084,7 @@
               "mode": "raw",
               "raw": "{\n  \"payment_transaction_id\": \"{{$guid}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"mode\": \"FAILED\"\n}"
             },
-            "description": "Simulates a failed top-up response from the mock gateway."
+            "description": "Simulates a failed top-up response from the mock gateway and sends a signed webhook callback. Start mock-gateway-service with PAYMENT_WEBHOOK_URL and GATEWAY_WEBHOOK_SECRET configured."
           }
         },
         {
@@ -1107,6 +1109,7 @@
           "request": {
             "method": "POST",
             "header": [
+              { "key": "X-Trace-Id", "value": "trace-mock-timeout-{{$guid}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -1118,7 +1121,7 @@
               "mode": "raw",
               "raw": "{\n  \"payment_transaction_id\": \"{{$guid}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"mode\": \"TIMEOUT\"\n}"
             },
-            "description": "Simulates a slow gateway response. Default local delay is 6000 ms, configurable with MOCK_GATEWAY_TIMEOUT_DELAY_MS."
+            "description": "Simulates a slow gateway response. Default local delay is 6000 ms, configurable with MOCK_GATEWAY_TIMEOUT_DELAY_MS. TIMEOUT mode does not send a webhook callback."
           }
         },
         {
