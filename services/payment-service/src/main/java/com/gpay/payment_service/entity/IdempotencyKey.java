@@ -41,4 +41,35 @@ public class IdempotencyKey {
 
 	protected IdempotencyKey() {
 	}
+
+	/**
+	 * Creates a durable payment idempotency response record.
+	 *
+	 * @param id             unique record identifier
+	 * @param userId         authenticated user identifier
+	 * @param idempotencyKey client-provided idempotency key
+	 * @param requestHash    hash of the original request payload
+	 * @param responseStatus cached HTTP response status
+	 * @param responseBody   cached JSON response body
+	 * @param createdAt      creation timestamp
+	 * @return idempotency key entity
+	 */
+	public static IdempotencyKey create(
+			UUID id,
+			UUID userId,
+			String idempotencyKey,
+			String requestHash,
+			Integer responseStatus,
+			String responseBody,
+			Instant createdAt) {
+		IdempotencyKey key = new IdempotencyKey();
+		key.id = id;
+		key.userId = userId;
+		key.idempotencyKey = idempotencyKey;
+		key.requestHash = requestHash;
+		key.responseStatus = responseStatus;
+		key.responseBody = responseBody;
+		key.createdAt = createdAt;
+		return key;
+	}
 }

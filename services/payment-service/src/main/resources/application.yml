@@ -22,3 +22,6 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+jwt:
+  secret: ${JWT_SECRET:change-this-secret-minimum-32-characters-long}

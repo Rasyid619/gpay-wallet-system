@@ -2,19 +2,23 @@ openapi: 3.0.3
 info:
   title: GPay Wallet System API
   version: 0.1.0
-  description: Implemented API contract for the Auth Service and Wallet Service.
+  description: Implemented API contract for the Auth Service, Wallet Service, and Payment Service.
 
 servers:
   - url: http://localhost:8081
     description: Local Auth Service.
   - url: http://localhost:8082
     description: Local Wallet Service.
+  - url: http://localhost:8083
+    description: Local Payment Service.
 
 tags:
   - name: Auth
     description: Operations for user identity, access tokens, and refresh tokens.
   - name: Internal Wallet
     description: Internal service-to-service wallet operations.
+  - name: Payment
+    description: Operations for authenticated payment top-up workflows.
   - name: Wallet
     description: Operations for authenticated wallet balance, mutation history, and transfers.
 
@@ -237,6 +241,39 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/WalletNotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /payments/top-up:
+    post:
+      tags:
+        - Payment
+      summary: Create a payment top-up transaction.
+      description: Creates or replays an authenticated payment top-up transaction using durable PostgreSQL idempotency. The mock gateway call is added in a later issue.
+      servers:
+        - url: http://localhost:8083
+          description: Local Payment Service.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentTopUpCreateRequest"
+      responses:
+        "201":
+          description: Top-up transaction was created. Duplicate requests with the same idempotency key and payload return the stored response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentTopUpShowResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
 
@@ -637,5 +674,50 @@ components:
           description: Wallet balance after credit in whole IDR.
           example: 150000
         credited_at:
+          type: string
+          format: date-time
+
+    PaymentTopUpCreateRequest:
+      type: object
+      required:
+        - wallet_id
+        - amount
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+          description: Wallet intended to receive the top-up credit.
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Top-up amount in whole IDR.
+          example: 75000
+
+    PaymentTopUpShowResponse:
+      type: object
+      required:
+        - payment_transaction_id
+        - wallet_id
+        - amount
+        - status
+        - created_at
+      properties:
+        payment_transaction_id:
+          type: string
+          format: uuid
+        wallet_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          format: int64
+          description: Top-up amount in whole IDR.
+          example: 75000
+        status:
+          type: string
+          enum:
+            - PENDING
+        created_at:
           type: string
           format: date-time
