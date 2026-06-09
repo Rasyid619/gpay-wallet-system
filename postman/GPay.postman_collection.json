@@ -55,6 +55,11 @@
       "key": "payment_transaction_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "topup_wallet_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -813,6 +818,119 @@
               "raw": "{\n  \"wallet_id\": \"{{credit_wallet_id}}\",\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"amount\": 50000\n}"
             },
             "description": "Expected: 400 Bad Request when Idempotency-Key header is missing."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Create Top-Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response has top-up details', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.payment_transaction_id).to.be.a('string');",
+                  "  pm.expect(body.wallet_id).to.be.a('string');",
+                  "  pm.expect(body.amount).to.be.a('number');",
+                  "  pm.expect(body.status).to.eql('PENDING');",
+                  "  pm.expect(body.created_at).to.be.a('string');",
+                  "  pm.collectionVariables.set('payment_transaction_id', body.payment_transaction_id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Idempotency-Key", "value": "topup-{{$guid}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": ["{{payment_url}}"],
+              "path": ["payments", "top-up"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000\n}"
+            },
+            "description": "Creates a pending payment top-up transaction. Requires a valid Bearer access token and Idempotency-Key."
+          }
+        },
+        {
+          "name": "Create Top-Up — No Idempotency Key (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is VALIDATION_ERROR', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": ["{{payment_url}}"],
+              "path": ["payments", "top-up"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000\n}"
+            },
+            "description": "Expected: 400 Bad Request when Idempotency-Key header is missing."
+          }
+        },
+        {
+          "name": "Create Top-Up — Invalid Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer invalid.token.here" },
+              { "key": "Idempotency-Key", "value": "topup-invalid-token-{{$guid}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": ["{{payment_url}}"],
+              "path": ["payments", "top-up"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000\n}"
+            },
+            "description": "Expected: 401 Unauthorized when token is invalid or expired."
           }
         }
       ]

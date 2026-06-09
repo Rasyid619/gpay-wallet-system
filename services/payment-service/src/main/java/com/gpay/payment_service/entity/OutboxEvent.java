@@ -25,6 +25,7 @@ public class OutboxEvent {
 	private UUID id;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(nullable = false, columnDefinition = "outbox_event_type")
 	private OutboxEventType eventType;
 
@@ -36,6 +37,7 @@ public class OutboxEvent {
 	private String payload;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(nullable = false, columnDefinition = "outbox_event_status")
 	private OutboxEventStatus status;
 

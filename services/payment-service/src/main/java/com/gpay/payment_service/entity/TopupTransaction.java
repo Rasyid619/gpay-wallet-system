@@ -10,6 +10,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Getter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /* Persisted payment top-up transaction owned by payment service. */
 @Getter
@@ -31,6 +33,7 @@ public class TopupTransaction {
 	private Long amount;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(nullable = false, columnDefinition = "payment_status")
 	private PaymentStatus status;
 
@@ -53,5 +56,38 @@ public class TopupTransaction {
 	private Instant updatedAt;
 
 	protected TopupTransaction() {
+	}
+
+	/**
+	 * Creates a pending payment top-up transaction.
+	 *
+	 * @param id             unique payment transaction identifier
+	 * @param userId         authenticated user identifier
+	 * @param walletId       wallet intended to receive the top-up
+	 * @param amount         top-up amount in whole IDR
+	 * @param idempotencyKey client-provided idempotency key
+	 * @param traceId        request trace identifier when supplied
+	 * @param now            creation timestamp
+	 * @return top-up transaction entity
+	 */
+	public static TopupTransaction createPending(
+			UUID id,
+			UUID userId,
+			UUID walletId,
+			Long amount,
+			String idempotencyKey,
+			String traceId,
+			Instant now) {
+		TopupTransaction transaction = new TopupTransaction();
+		transaction.id = id;
+		transaction.userId = userId;
+		transaction.walletId = walletId;
+		transaction.amount = amount;
+		transaction.status = PaymentStatus.PENDING;
+		transaction.idempotencyKey = idempotencyKey;
+		transaction.traceId = traceId;
+		transaction.createdAt = now;
+		transaction.updatedAt = now;
+		return transaction;
 	}
 }

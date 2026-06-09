@@ -1,0 +1,164 @@
+package com.gpay.payment_service.controller;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.gpay.payment_service.config.SecurityConfig;
+import com.gpay.payment_service.dto.IdempotentResponse;
+import com.gpay.payment_service.dto.TopUpRequest;
+import com.gpay.payment_service.dto.TopUpResponse;
+import com.gpay.payment_service.exception.GlobalExceptionHandler;
+import com.gpay.payment_service.security.JwtAuthFilter;
+import com.gpay.payment_service.security.JwtService;
+import com.gpay.payment_service.service.PaymentTopUpService;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Date;
+import java.util.UUID;
+import javax.crypto.SecretKey;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+/**
+ * MVC tests for authenticated payment top-up endpoint access.
+ */
+@WebMvcTest(PaymentController.class)
+@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class})
+@TestPropertySource(properties = "jwt.secret=test-secret-minimum-32-characters-long")
+class PaymentControllerTest {
+
+	private static final String JWT_SECRET = "test-secret-minimum-32-characters-long";
+
+	@Autowired
+	private MockMvc mockMvc;
+
+	@MockitoBean
+	private PaymentTopUpService paymentTopUpService;
+
+	@Test
+	void returnsCreatedTopUpForAuthenticatedUser() throws Exception {
+		UUID userId = UUID.randomUUID();
+		UUID walletId = UUID.randomUUID();
+		UUID paymentTransactionId = UUID.randomUUID();
+		Instant createdAt = Instant.parse("2026-06-09T09:30:00Z");
+		when(paymentTopUpService.topUp(
+				eq(userId),
+				eq("topup-key-1"),
+				any(TopUpRequest.class),
+				eq("trace-payment")))
+				.thenReturn(new IdempotentResponse(
+						201,
+						new TopUpResponse(paymentTransactionId, walletId, 75000L, "PENDING", createdAt)));
+
+		mockMvc.perform(post("/payments/top-up")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(userId))
+						.header("Idempotency-Key", "topup-key-1")
+						.header("X-Trace-Id", "trace-payment")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "wallet_id": "%s",
+								  "amount": 75000
+								}
+								""".formatted(walletId)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.payment_transaction_id").value(paymentTransactionId.toString()))
+				.andExpect(jsonPath("$.wallet_id").value(walletId.toString()))
+				.andExpect(jsonPath("$.amount").value(75000))
+				.andExpect(jsonPath("$.status").value("PENDING"))
+				.andExpect(jsonPath("$.created_at").value("2026-06-09T09:30:00Z"));
+	}
+
+	@Test
+	void returnsUnauthorizedWhenTokenIsMissing() throws Exception {
+		mockMvc.perform(post("/payments/top-up")
+						.header("Idempotency-Key", "topup-key-missing-token")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "wallet_id": "%s",
+								  "amount": 75000
+								}
+								""".formatted(UUID.randomUUID())))
+				.andExpect(status().isUnauthorized());
+
+		verifyNoInteractions(paymentTopUpService);
+	}
+
+	@Test
+	void returnsUnauthorizedWhenTokenIsInvalid() throws Exception {
+		mockMvc.perform(post("/payments/top-up")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here")
+						.header("Idempotency-Key", "topup-key-invalid-token")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "wallet_id": "%s",
+								  "amount": 75000
+								}
+								""".formatted(UUID.randomUUID())))
+				.andExpect(status().isUnauthorized());
+
+		verifyNoInteractions(paymentTopUpService);
+	}
+
+	@Test
+	void returnsBadRequestWhenIdempotencyKeyIsMissing() throws Exception {
+		mockMvc.perform(post("/payments/top-up")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(UUID.randomUUID()))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "wallet_id": "%s",
+								  "amount": 75000
+								}
+								""".formatted(UUID.randomUUID())))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+
+		verifyNoInteractions(paymentTopUpService);
+	}
+
+	@Test
+	void returnsBadRequestWhenAmountIsInvalid() throws Exception {
+		mockMvc.perform(post("/payments/top-up")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(UUID.randomUUID()))
+						.header("Idempotency-Key", "topup-key-invalid-amount")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "wallet_id": "%s",
+								  "amount": 0
+								}
+								""".formatted(UUID.randomUUID())))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+
+		verifyNoInteractions(paymentTopUpService);
+	}
+
+	private String createToken(UUID userId) {
+		SecretKey key = Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8));
+		Instant now = Instant.now();
+		return Jwts.builder()
+				.subject(userId.toString())
+				.issuedAt(Date.from(now))
+				.expiration(Date.from(now.plusSeconds(900)))
+				.signWith(key)
+				.compact();
+	}
+}
