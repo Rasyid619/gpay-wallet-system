@@ -5,10 +5,14 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gpay.wallet_service.config.SecurityConfig;
+import com.gpay.wallet_service.dto.IdempotentResponse;
+import com.gpay.wallet_service.dto.TransferRequest;
+import com.gpay.wallet_service.dto.TransferResponse;
 import com.gpay.wallet_service.dto.WalletBalanceResponse;
 import com.gpay.wallet_service.dto.WalletMutationPageResponse;
 import com.gpay.wallet_service.dto.WalletMutationResponse;
@@ -18,6 +22,7 @@ import com.gpay.wallet_service.security.JwtAuthFilter;
 import com.gpay.wallet_service.security.JwtService;
 import com.gpay.wallet_service.service.WalletBalanceService;
 import com.gpay.wallet_service.service.WalletMutationService;
+import com.gpay.wallet_service.service.WalletTransferService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
@@ -31,6 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -54,6 +60,9 @@ class WalletControllerTest {
 
 	@MockitoBean
 	private WalletMutationService walletMutationService;
+
+	@MockitoBean
+	private WalletTransferService walletTransferService;
 
 	@Test
 	void returnsBalanceForAuthenticatedUser() throws Exception {
@@ -146,6 +155,98 @@ class WalletControllerTest {
 				.andExpect(status().isUnauthorized());
 
 		verifyNoInteractions(walletMutationService);
+	}
+
+	@Test
+	void returnsTransferResponseForAuthenticatedUser() throws Exception {
+		UUID userId = UUID.randomUUID();
+		UUID transferId = UUID.randomUUID();
+		UUID senderWalletId = UUID.randomUUID();
+		UUID receiverWalletId = UUID.randomUUID();
+		Instant createdAt = Instant.parse("2026-06-09T03:00:00Z");
+		when(walletTransferService.transfer(
+				eq(userId),
+				eq("transfer-key-1"),
+				any(TransferRequest.class),
+				eq("trace-1")))
+				.thenReturn(new IdempotentResponse(
+						200,
+						new TransferResponse(
+								transferId,
+								senderWalletId,
+								receiverWalletId,
+								25000L,
+								"SUCCESS",
+								createdAt)));
+
+		mockMvc.perform(post("/wallets/transfer")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(userId))
+						.header("Idempotency-Key", "transfer-key-1")
+						.header("X-Trace-Id", "trace-1")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "receiver_wallet_id": "%s",
+								  "amount": 25000
+								}
+								""".formatted(receiverWalletId)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.transfer_id").value(transferId.toString()))
+				.andExpect(jsonPath("$.sender_wallet_id").value(senderWalletId.toString()))
+				.andExpect(jsonPath("$.receiver_wallet_id").value(receiverWalletId.toString()))
+				.andExpect(jsonPath("$.amount").value(25000))
+				.andExpect(jsonPath("$.status").value("SUCCESS"))
+				.andExpect(jsonPath("$.created_at").value("2026-06-09T03:00:00Z"));
+	}
+
+	@Test
+	void returnsBadRequestWhenTransferIdempotencyKeyIsMissing() throws Exception {
+		mockMvc.perform(post("/wallets/transfer")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(UUID.randomUUID()))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "receiver_wallet_id": "%s",
+								  "amount": 25000
+								}
+								""".formatted(UUID.randomUUID())))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+
+		verifyNoInteractions(walletTransferService);
+	}
+
+	@Test
+	void returnsUnauthorizedForTransferWhenTokenIsMissing() throws Exception {
+		mockMvc.perform(post("/wallets/transfer")
+						.header("Idempotency-Key", "transfer-key-missing-token")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "receiver_wallet_id": "%s",
+								  "amount": 25000
+								}
+								""".formatted(UUID.randomUUID())))
+				.andExpect(status().isUnauthorized());
+
+		verifyNoInteractions(walletTransferService);
+	}
+
+	@Test
+	void returnsUnauthorizedForTransferWhenTokenIsInvalid() throws Exception {
+		mockMvc.perform(post("/wallets/transfer")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here")
+						.header("Idempotency-Key", "transfer-key-invalid-token")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "receiver_wallet_id": "%s",
+								  "amount": 25000
+								}
+								""".formatted(UUID.randomUUID())))
+				.andExpect(status().isUnauthorized());
+
+		verifyNoInteractions(walletTransferService);
 	}
 
 	private String createToken(UUID userId) {

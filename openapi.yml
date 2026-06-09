@@ -14,7 +14,7 @@ tags:
   - name: Auth
     description: Operations for user identity, access tokens, and refresh tokens.
   - name: Wallet
-    description: Operations for authenticated wallet balance and mutation history.
+    description: Operations for authenticated wallet balance, mutation history, and transfers.
 
 paths:
   /auth/register:
@@ -168,8 +168,51 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /wallets/transfer:
+    post:
+      tags:
+        - Wallet
+      summary: Transfer money to another wallet.
+      description: Atomically debits the authenticated user's wallet and credits the receiver wallet. Requires durable PostgreSQL idempotency by Idempotency-Key.
+      servers:
+        - url: http://localhost:8082
+          description: Local Wallet Service.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletTransferCreateRequest"
+      responses:
+        "200":
+          description: Transfer response was returned. Duplicate requests with the same idempotency key and payload return the stored response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletTransferShowResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/WalletNotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
 components:
   parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Durable idempotency key for money-moving requests.
+      schema:
+        type: string
+        minLength: 1
     Page:
       name: page
       in: query
@@ -197,18 +240,38 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error: VALIDATION_ERROR
-            message: email must be a well-formed email address
+          examples:
+            validation_error:
+              value:
+                error: VALIDATION_ERROR
+                message: email must be a well-formed email address
+            insufficient_balance:
+              value:
+                error: INSUFFICIENT_BALANCE
+                message: Wallet balance is not enough for this transfer
+            daily_limit_exceeded:
+              value:
+                error: DAILY_TRANSFER_LIMIT_EXCEEDED
+                message: Daily transfer limit exceeded
+            same_wallet_transfer:
+              value:
+                error: SAME_WALLET_TRANSFER
+                message: Sender and receiver wallet must be different
     Conflict:
       description: The request conflicts with an existing resource.
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error: EMAIL_ALREADY_REGISTERED
-            message: Email is already registered
+          examples:
+            email_registered:
+              value:
+                error: EMAIL_ALREADY_REGISTERED
+                message: Email is already registered
+            idempotency_key_conflict:
+              value:
+                error: IDEMPOTENCY_KEY_CONFLICT
+                message: Idempotency key was already used with a different request
     NotFound:
       description: The requested resource was not found.
       content:
@@ -229,6 +292,16 @@ components:
           example:
             error: WALLET_NOT_FOUND
             message: Wallet was not found for authenticated user
+
+    InsufficientBalance:
+      description: Sender wallet balance is not enough for the transfer.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: INSUFFICIENT_BALANCE
+            message: Wallet balance is not enough for this transfer
 
   securitySchemes:
     BearerAuth:
@@ -418,6 +491,55 @@ components:
           type: string
           format: uuid
           nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    WalletTransferCreateRequest:
+      type: object
+      required:
+        - receiver_wallet_id
+        - amount
+      properties:
+        receiver_wallet_id:
+          type: string
+          format: uuid
+          description: Wallet that receives the transfer credit.
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Transfer amount in whole IDR.
+          example: 25000
+
+    WalletTransferShowResponse:
+      type: object
+      required:
+        - transfer_id
+        - sender_wallet_id
+        - receiver_wallet_id
+        - amount
+        - status
+        - created_at
+      properties:
+        transfer_id:
+          type: string
+          format: uuid
+        sender_wallet_id:
+          type: string
+          format: uuid
+        receiver_wallet_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          format: int64
+          description: Transfer amount in whole IDR.
+          example: 25000
+        status:
+          type: string
+          enum:
+            - SUCCESS
         created_at:
           type: string
           format: date-time
