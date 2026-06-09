@@ -5,18 +5,16 @@ import com.gpay.wallet_service.entity.Wallet;
 import com.gpay.wallet_service.exception.WalletNotFoundException;
 import com.gpay.wallet_service.repository.WalletRepository;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /* Reads authenticated wallet balances. */
 @Service
+@RequiredArgsConstructor
 public class WalletBalanceService {
 
 	private final WalletRepository walletRepository;
-
-	public WalletBalanceService(WalletRepository walletRepository) {
-		this.walletRepository = walletRepository;
-	}
 
 	/**
 	 * Returns the wallet balance for an authenticated user.

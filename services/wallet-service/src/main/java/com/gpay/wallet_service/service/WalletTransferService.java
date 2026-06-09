@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /* Executes authenticated wallet-to-wallet transfers. */
 @Service
+@RequiredArgsConstructor
 public class WalletTransferService {
 
 	private static final String ACTION_TRANSFER = "WALLET_TRANSFER";
@@ -49,24 +51,8 @@ public class WalletTransferService {
 	private final ObjectMapper objectMapper;
 	private final TransferRepository transferRepository;
 	private final WalletRepository walletRepository;
-	private final Long maxDailyTransferAmount;
-
-	public WalletTransferService(
-			ActivityLogRepository activityLogRepository,
-			IdempotencyKeyRepository idempotencyKeyRepository,
-			LedgerEntryRepository ledgerEntryRepository,
-			ObjectMapper objectMapper,
-			TransferRepository transferRepository,
-			WalletRepository walletRepository,
-			@Value("${wallet.transfer.max-daily-transfer-amount}") Long maxDailyTransferAmount) {
-		this.activityLogRepository = activityLogRepository;
-		this.idempotencyKeyRepository = idempotencyKeyRepository;
-		this.ledgerEntryRepository = ledgerEntryRepository;
-		this.objectMapper = objectMapper;
-		this.transferRepository = transferRepository;
-		this.walletRepository = walletRepository;
-		this.maxDailyTransferAmount = maxDailyTransferAmount;
-	}
+	@Value("${wallet.transfer.max-daily-transfer-amount}")
+	private Long maxDailyTransferAmount;
 
 	/**
 	 * Creates or replays an idempotent wallet transfer response.

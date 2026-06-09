@@ -36,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Unit tests for {@link AuthService} register, login, getMe, and refresh behavior.
@@ -59,7 +60,8 @@ class AuthServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		authService = new AuthService(userRepository, refreshTokenRepository, jwtService, passwordEncoder, 7);
+		authService = new AuthService(userRepository, refreshTokenRepository, jwtService, passwordEncoder);
+		ReflectionTestUtils.setField(authService, "refreshTokenExpirationDays", 7);
 	}
 
 	@Nested

@@ -28,6 +28,7 @@ import java.util.HexFormat;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /* Credits wallets from trusted internal payment-service delivery. */
 @Service
+@RequiredArgsConstructor
 public class InternalWalletCreditService {
 
 	private static final String ACTION_CREDIT = "INTERNAL_WALLET_CREDIT";
@@ -44,22 +46,8 @@ public class InternalWalletCreditService {
 	private final LedgerEntryRepository ledgerEntryRepository;
 	private final ObjectMapper objectMapper;
 	private final WalletRepository walletRepository;
-	private final String internalToken;
-
-	public InternalWalletCreditService(
-			ActivityLogRepository activityLogRepository,
-			IdempotencyKeyRepository idempotencyKeyRepository,
-			LedgerEntryRepository ledgerEntryRepository,
-			ObjectMapper objectMapper,
-			WalletRepository walletRepository,
-			@Value("${wallet.internal-token}") String internalToken) {
-		this.activityLogRepository = activityLogRepository;
-		this.idempotencyKeyRepository = idempotencyKeyRepository;
-		this.ledgerEntryRepository = ledgerEntryRepository;
-		this.objectMapper = objectMapper;
-		this.walletRepository = walletRepository;
-		this.internalToken = internalToken;
-	}
+	@Value("${wallet.internal-token}")
+	private String internalToken;
 
 	/**
 	 * Creates or replays an internal wallet credit.

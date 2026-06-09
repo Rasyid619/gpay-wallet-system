@@ -6,6 +6,7 @@ import com.gpay.wallet_service.entity.LedgerEntry;
 import com.gpay.wallet_service.entity.Transfer;
 import com.gpay.wallet_service.repository.LedgerEntryRepository;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,15 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 /* Reads authenticated wallet mutation history. */
 @Service
+@RequiredArgsConstructor
 public class WalletMutationService {
 
 	private static final int MAX_PAGE_SIZE = 100;
 
 	private final LedgerEntryRepository ledgerEntryRepository;
-
-	public WalletMutationService(LedgerEntryRepository ledgerEntryRepository) {
-		this.ledgerEntryRepository = ledgerEntryRepository;
-	}
 
 	/**
 	 * Returns paginated wallet mutations for the authenticated user's wallet.
