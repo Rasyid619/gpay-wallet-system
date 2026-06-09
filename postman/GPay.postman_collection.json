@@ -1025,7 +1025,7 @@
               "mode": "raw",
               "raw": "{\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"status\": \"SUCCESS\",\n  \"gateway_reference\": \"gw-postman-success\"\n}"
             },
-            "description": "Sends a valid signed SUCCESS webhook to Payment Service. Set gateway_webhook_secret to match PAYMENT_GATEWAY_WEBHOOK_SECRET."
+            "description": "Sends a valid signed SUCCESS webhook to Payment Service and creates one pending wallet-credit outbox event. Set gateway_webhook_secret to match PAYMENT_GATEWAY_WEBHOOK_SECRET."
           }
         },
         {

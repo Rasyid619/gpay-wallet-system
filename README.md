@@ -201,6 +201,8 @@ must be configured before using Mock Gateway `SUCCESS` or `FAILED` mode.
 the required 5-second payment gateway timeout.
 `PAYMENT_GATEWAY_WEBHOOK_SECRET` must match Mock Gateway's
 `GATEWAY_WEBHOOK_SECRET` so Payment Service can validate gateway callbacks.
+Successful gateway callbacks create one pending wallet-credit outbox event in
+`payment_db`; duplicate successful callbacks do not create duplicate credit work.
 
 ## Running Services
 

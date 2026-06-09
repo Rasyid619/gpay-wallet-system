@@ -20,6 +20,7 @@ public class PaymentWebhookService {
 
 	private final GatewayWebhookSignatureService signatureService;
 	private final ObjectMapper objectMapper;
+	private final PaymentOutboxService paymentOutboxService;
 	private final TopupTransactionRepository topupTransactionRepository;
 
 	@Transactional
@@ -39,6 +40,7 @@ public class PaymentWebhookService {
 		Instant now = Instant.now();
 		if (request.status() == PaymentStatus.SUCCESS) {
 			transaction.markSuccess(request.gatewayReference(), now);
+			paymentOutboxService.enqueueWalletCredit(transaction, now);
 		} else if (request.status() == PaymentStatus.FAILED) {
 			transaction.markFailed(request.gatewayReference(), "Gateway reported payment failure", now);
 		} else {

@@ -58,4 +58,23 @@ public class OutboxEvent {
 
 	protected OutboxEvent() {
 	}
+
+	public static OutboxEvent createPending(
+			UUID id,
+			OutboxEventType eventType,
+			UUID aggregateId,
+			String payload,
+			Instant now) {
+		OutboxEvent event = new OutboxEvent();
+		event.id = id;
+		event.eventType = eventType;
+		event.aggregateId = aggregateId;
+		event.payload = payload;
+		event.status = OutboxEventStatus.PENDING;
+		event.retryCount = 0;
+		event.nextRetryAt = now;
+		event.createdAt = now;
+		event.updatedAt = now;
+		return event;
+	}
 }

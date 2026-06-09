@@ -290,7 +290,7 @@ paths:
       tags:
         - Payment
       summary: Receive a signed mock gateway webhook.
-      description: Validates X-Gateway-Signature using HMAC_SHA256(secret, timestamp + "." + rawRequestBody) before updating the payment transaction to SUCCESS or FAILED.
+      description: Validates X-Gateway-Signature using HMAC_SHA256(secret, timestamp + "." + rawRequestBody) before updating the payment transaction to SUCCESS or FAILED. SUCCESS webhooks enqueue one pending wallet-credit outbox event.
       servers:
         - url: http://localhost:8083
           description: Local Payment Service.
@@ -315,7 +315,7 @@ paths:
               $ref: "#/components/schemas/PaymentGatewayWebhookCreateRequest"
       responses:
         "200":
-          description: Gateway webhook was accepted and payment transaction status was updated.
+          description: Gateway webhook was accepted and payment transaction status was updated. SUCCESS creates or reuses pending wallet-credit outbox work.
           content:
             application/json:
               schema:
