@@ -290,10 +290,17 @@ paths:
       tags:
         - Mock Gateway
       summary: Simulate a gateway top-up request.
-      description: Accepts a mock gateway simulation request. SUCCESS and FAILED return immediately; TIMEOUT delays using the service timeout simulation setting.
+      description: Accepts a mock gateway simulation request. SUCCESS and FAILED send a signed webhook callback to the configured Payment webhook URL. TIMEOUT delays using the service timeout simulation setting and does not send a callback.
       servers:
         - url: http://localhost:8084
           description: Local Mock Gateway Service.
+      parameters:
+        - name: X-Trace-Id
+          in: header
+          required: false
+          description: Optional trace id propagated to the Payment webhook callback.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -801,7 +808,7 @@ components:
             - SUCCESS
             - FAILED
             - TIMEOUT
-          description: Gateway behavior to simulate.
+          description: Gateway behavior to simulate. SUCCESS and FAILED send signed webhook callbacks using HMAC_SHA256(secret, timestamp + "." + rawRequestBody).
 
     MockGatewayTopUpShowResponse:
       type: object
@@ -843,3 +850,33 @@ components:
         message:
           type: string
           example: Gateway accepted successful top-up simulation
+
+    GatewayWebhookPayload:
+      type: object
+      description: Payload sent by Mock Gateway to the configured Payment webhook URL for SUCCESS and FAILED modes.
+      required:
+        - payment_transaction_id
+        - wallet_id
+        - amount
+        - status
+        - gateway_reference
+      properties:
+        payment_transaction_id:
+          type: string
+          format: uuid
+        wallet_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          format: int64
+          description: Top-up amount in whole IDR.
+          example: 75000
+        status:
+          type: string
+          enum:
+            - SUCCESS
+            - FAILED
+        gateway_reference:
+          type: string
+          example: gw-4f437123-8c2d-41c5-9300-a0f8f72fd6e3

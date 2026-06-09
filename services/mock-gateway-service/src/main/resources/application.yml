@@ -6,4 +6,6 @@ spring:
     name: mock-gateway-service
 
 mock-gateway:
-  timeout-delay-ms: ${MOCK_GATEWAY_TIMEOUT_DELAY_MS:6000}
+  timeout-delay-ms: ${MOCK_GATEWAY_TIMEOUT_DELAY_MS}
+  payment-webhook-url: ${PAYMENT_WEBHOOK_URL}
+  webhook-secret: ${GATEWAY_WEBHOOK_SECRET}
