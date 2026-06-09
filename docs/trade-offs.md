@@ -594,7 +594,77 @@ common-idempotency
 
 ---
 
-# 16. Summary of Main Decisions
+# 16. Payment Schema Strictness vs Flexible Text Schema
+
+## Decision
+
+Use a strict payment schema with PostgreSQL enums for fixed lifecycle states,
+`JSONB` for stored payloads, and explicit payment-owned tables:
+
+```txt
+topup_transactions
+idempotency_keys
+outbox_events
+activity_logs
+```
+
+Status and type columns use enums:
+
+```txt
+payment_status
+outbox_event_type
+outbox_event_status
+```
+
+## Reason
+
+Payment state transitions are safety-sensitive. The database should reject
+unknown statuses and event types even if application code has a bug. This keeps
+the schema aligned with the documented payment lifecycle while still leaving
+payload fields flexible enough for later endpoint, webhook, and outbox work.
+
+## Pros
+
+* Prevents invalid payment and outbox states at the database level
+* Keeps Flyway migration behavior explicit and reviewable
+* Uses `JSONB` for payloads that need structured storage and later inspection
+* Keeps idempotency durable in PostgreSQL
+* Supports later top-up, webhook, and wallet-credit outbox issues without adding endpoint behavior early
+
+## Cons
+
+* Enum changes require a migration
+* Slightly less flexible than plain `TEXT` status fields
+* More schema detail is needed before all payment workflows are implemented
+
+## Rejected Option
+
+Rejected:
+
+```txt
+TEXT-only statuses and payloads
+```
+
+Reason:
+
+```txt
+This is simpler initially, but it allows invalid lifecycle values and makes
+reviewing payment state correctness harder.
+```
+
+## Current Design Notes
+
+The foundation schema keeps:
+
+* `idempotency_key` on `topup_transactions` for top-up lookup and auditing
+* `(user_id, idempotency_key)` uniqueness in `idempotency_keys`
+* `aggregate_id` in `outbox_events` so the outbox remains event-oriented
+* `request_payload`, `response_payload`, and `duration_ms` in `activity_logs`
+* `BIGINT` money fields and `Long` Java mappings
+
+---
+
+# 17. Summary of Main Decisions
 
 ```txt
 Monorepo:
@@ -615,6 +685,9 @@ HTTP/WebClient:
 Outbox:
 - Chosen for reliable wallet credit retry without RabbitMQ
 
+Payment schema strictness:
+- Chosen to reject invalid lifecycle states at the database level
+
 Transfer inside Wallet Service:
 - Chosen for atomic local transaction
 
@@ -633,4 +706,3 @@ TraceId + MDC:
 Focused tests:
 - Chosen for deadline-realistic confidence
 ```
-
