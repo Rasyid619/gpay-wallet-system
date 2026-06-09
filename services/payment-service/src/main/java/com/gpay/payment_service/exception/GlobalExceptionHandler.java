@@ -12,6 +12,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+	@ExceptionHandler(InvalidWebhookSignatureException.class)
+	public ResponseEntity<Map<String, String>> handleInvalidWebhookSignature(InvalidWebhookSignatureException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+				.body(Map.of("error", "INVALID_WEBHOOK_SIGNATURE", "message", ex.getMessage()));
+	}
+
+	@ExceptionHandler(NotFoundException.class)
+	public ResponseEntity<Map<String, String>> handleNotFound(NotFoundException ex) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.body(Map.of("error", "NOT_FOUND", "message", ex.getMessage()));
+	}
+
 	@ExceptionHandler(RateLimitExceededException.class)
 	public ResponseEntity<Map<String, String>> handleRateLimitExceeded(RateLimitExceededException ex) {
 		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)

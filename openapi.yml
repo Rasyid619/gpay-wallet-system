@@ -285,6 +285,48 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /payments/webhook/gateway:
+    post:
+      tags:
+        - Payment
+      summary: Receive a signed mock gateway webhook.
+      description: Validates X-Gateway-Signature using HMAC_SHA256(secret, timestamp + "." + rawRequestBody) before updating the payment transaction to SUCCESS or FAILED.
+      servers:
+        - url: http://localhost:8083
+          description: Local Payment Service.
+      parameters:
+        - name: X-Gateway-Signature
+          in: header
+          required: true
+          description: HMAC SHA-256 signature for timestamp and exact raw JSON body.
+          schema:
+            type: string
+        - name: X-Gateway-Timestamp
+          in: header
+          required: true
+          description: Timestamp included in the signature input.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentGatewayWebhookCreateRequest"
+      responses:
+        "200":
+          description: Gateway webhook was accepted and payment transaction status was updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentGatewayWebhookShowResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /mock-gateway/top-up:
     post:
       tags:
@@ -787,6 +829,51 @@ components:
         created_at:
           type: string
           format: date-time
+
+    PaymentGatewayWebhookCreateRequest:
+      type: object
+      required:
+        - payment_transaction_id
+        - wallet_id
+        - amount
+        - status
+        - gateway_reference
+      properties:
+        payment_transaction_id:
+          type: string
+          format: uuid
+        wallet_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Top-up amount in whole IDR.
+          example: 75000
+        status:
+          type: string
+          enum:
+            - SUCCESS
+            - FAILED
+        gateway_reference:
+          type: string
+          example: gw-4f437123-8c2d-41c5-9300-a0f8f72fd6e3
+
+    PaymentGatewayWebhookShowResponse:
+      type: object
+      required:
+        - payment_transaction_id
+        - status
+      properties:
+        payment_transaction_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - SUCCESS
+            - FAILED
 
     MockGatewayTopUpCreateRequest:
       type: object
