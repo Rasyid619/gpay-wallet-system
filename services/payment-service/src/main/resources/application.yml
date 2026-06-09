@@ -34,3 +34,6 @@ jwt:
 payment:
   rate-limit:
     max-requests-per-minute: ${PAYMENT_TOPUP_RATE_LIMIT_PER_MINUTE:5}
+  gateway:
+    top-up-url: ${PAYMENT_GATEWAY_TOP_UP_URL}
+    timeout-ms: ${PAYMENT_GATEWAY_TIMEOUT_MS}

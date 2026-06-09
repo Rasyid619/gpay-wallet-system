@@ -179,6 +179,8 @@ WALLET_DB_PASSWORD
 WALLET_DB_URL
 WALLET_DB_USERNAME
 WALLET_INTERNAL_TOKEN
+PAYMENT_GATEWAY_TOP_UP_URL
+PAYMENT_GATEWAY_TIMEOUT_MS
 PAYMENT_WEBHOOK_URL
 GATEWAY_WEBHOOK_SECRET
 MOCK_GATEWAY_TIMEOUT_DELAY_MS
@@ -193,6 +195,9 @@ testing, set the collection variable `internal_token` to the same value.
 `HMAC_SHA256(secret, timestamp + "." + rawRequestBody)`. `PAYMENT_WEBHOOK_URL`
 must be configured before using Mock Gateway `SUCCESS` or `FAILED` mode.
 `MOCK_GATEWAY_TIMEOUT_DELAY_MS` controls the `TIMEOUT` mode delay.
+`PAYMENT_GATEWAY_TOP_UP_URL` should point to Mock Gateway
+`/mock-gateway/top-up`, and `PAYMENT_GATEWAY_TIMEOUT_MS` should be `5000` for
+the required 5-second payment gateway timeout.
 
 ## Running Services
 
@@ -208,6 +213,25 @@ Wallet Service:
 ```bash
 cd services/wallet-service
 WALLET_INTERNAL_TOKEN=dev-internal-token-change-me ./gradlew bootRun
+```
+
+Payment Service:
+
+```bash
+cd services/payment-service
+PAYMENT_GATEWAY_TOP_UP_URL=http://localhost:8084/mock-gateway/top-up \
+PAYMENT_GATEWAY_TIMEOUT_MS=5000 \
+./gradlew bootRun
+```
+
+Mock Gateway Service:
+
+```bash
+cd services/mock-gateway-service
+PAYMENT_WEBHOOK_URL=http://localhost:8083/payments/webhook/gateway \
+GATEWAY_WEBHOOK_SECRET=dev-gateway-webhook-secret-change-me \
+MOCK_GATEWAY_TIMEOUT_DELAY_MS=6000 \
+./gradlew bootRun
 ```
 
 ## Running Tests

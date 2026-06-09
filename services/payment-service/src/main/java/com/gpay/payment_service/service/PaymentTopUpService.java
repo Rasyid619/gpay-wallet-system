@@ -23,6 +23,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /* Creates authenticated payment top-up transactions with durable idempotency. */
 @Service
@@ -31,6 +33,7 @@ public class PaymentTopUpService {
 
 	private final IdempotencyKeyRepository idempotencyKeyRepository;
 	private final ObjectMapper objectMapper;
+	private final PaymentGatewayClient paymentGatewayClient;
 	private final PaymentRateLimiter paymentRateLimiter;
 	private final TopupTransactionRepository topupTransactionRepository;
 
@@ -90,6 +93,7 @@ public class PaymentTopUpService {
 				traceId,
 				now);
 		topupTransactionRepository.save(transaction);
+		callGatewayAfterCommit(transaction.getId(), request, traceId);
 
 		TopUpResponse response = new TopUpResponse(
 				transaction.getId(),
@@ -99,6 +103,20 @@ public class PaymentTopUpService {
 				transaction.getCreatedAt());
 		storeIdempotency(userId, idempotencyKey, requestHash, HttpStatus.CREATED.value(), response, now);
 		return new IdempotentResponse(HttpStatus.CREATED.value(), response);
+	}
+
+	private void callGatewayAfterCommit(UUID paymentTransactionId, TopUpRequest request, String traceId) {
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			paymentGatewayClient.requestTopUp(paymentTransactionId, request, traceId);
+			return;
+		}
+
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				paymentGatewayClient.requestTopUp(paymentTransactionId, request, traceId);
+			}
+		});
 	}
 
 	private void storeIdempotency(
