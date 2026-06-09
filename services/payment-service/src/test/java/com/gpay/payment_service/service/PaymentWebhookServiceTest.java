@@ -3,8 +3,11 @@ package com.gpay.payment_service.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gpay.payment_service.entity.TopupTransaction;
 import com.gpay.payment_service.exception.InvalidWebhookSignatureException;
+import com.gpay.payment_service.repository.OutboxEventRepository;
 import com.gpay.payment_service.repository.TopupTransactionRepository;
 import java.time.Instant;
 import java.util.UUID;
@@ -32,11 +35,18 @@ class PaymentWebhookServiceTest {
 	private PaymentWebhookService paymentWebhookService;
 
 	@Autowired
+	private OutboxEventRepository outboxEventRepository;
+
+	@Autowired
+	private ObjectMapper objectMapper;
+
+	@Autowired
 	private TopupTransactionRepository topupTransactionRepository;
 
 	@Test
-	void validSuccessWebhookUpdatesTransaction() {
+	void validSuccessWebhookUpdatesTransactionAndCreatesOutboxEvent() {
 		TopupTransaction transaction = pendingTransaction();
+		long outboxCountBefore = countOutboxEvents();
 		String rawBody = webhookBody(transaction, "SUCCESS", "gw-success");
 		String timestamp = "2026-06-09T10:00:00Z";
 		String signature = signatureService.sign(timestamp, rawBody);
@@ -49,6 +59,34 @@ class PaymentWebhookServiceTest {
 		assertThat(updated.getStatus().name()).isEqualTo("SUCCESS");
 		assertThat(updated.getGatewayReference()).isEqualTo("gw-success");
 		assertThat(updated.getFailureReason()).isNull();
+		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore + 1);
+		var outboxEvent = outboxEventRepository.findAll()
+				.stream()
+				.filter(event -> event.getAggregateId().equals(transaction.getId()))
+				.findFirst()
+				.orElseThrow();
+		assertThat(outboxEvent.getEventType().name()).isEqualTo("CREDIT_WALLET_REQUESTED");
+		assertThat(outboxEvent.getStatus().name()).isEqualTo("PENDING");
+		assertThat(outboxEvent.getRetryCount()).isZero();
+		assertThat(outboxEvent.getNextRetryAt()).isNotNull();
+		var payload = readPayload(outboxEvent.getPayload());
+		assertThat(payload.get("wallet_id").asText()).isEqualTo(transaction.getWalletId().toString());
+		assertThat(payload.get("payment_transaction_id").asText()).isEqualTo(transaction.getId().toString());
+		assertThat(payload.get("amount").asLong()).isEqualTo(75000L);
+	}
+
+	@Test
+	void duplicateSuccessWebhookDoesNotCreateDuplicateOutboxEvent() {
+		TopupTransaction transaction = pendingTransaction();
+		long outboxCountBefore = countOutboxEvents();
+		String rawBody = webhookBody(transaction, "SUCCESS", "gw-duplicate");
+		String timestamp = "2026-06-09T10:00:00Z";
+		String signature = signatureService.sign(timestamp, rawBody);
+
+		paymentWebhookService.processGatewayWebhook(signature, timestamp, rawBody);
+		paymentWebhookService.processGatewayWebhook(signature, timestamp, rawBody);
+
+		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore + 1);
 	}
 
 	@Test
@@ -107,5 +145,13 @@ class PaymentWebhookServiceTest {
 
 	private long countOutboxEvents() {
 		return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM outbox_events", Long.class);
+	}
+
+	private com.fasterxml.jackson.databind.JsonNode readPayload(String payload) {
+		try {
+			return objectMapper.readTree(payload);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Outbox payload should be valid JSON", ex);
+		}
 	}
 }
