@@ -234,7 +234,6 @@ Project behavior and decisions are documented in:
 - `docs/architecture.md`
 - `docs/failure-scenarios.md`
 - `docs/trade-offs.md`
-- `CODEX.java.md`
 
 ## API Notes
 
