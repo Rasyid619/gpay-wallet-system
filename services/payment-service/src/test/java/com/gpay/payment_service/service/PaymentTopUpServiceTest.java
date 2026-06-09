@@ -28,7 +28,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @SpringBootTest
 @TestPropertySource(properties = {
 		"payment.gateway.top-up-url=http://localhost:8084/mock-gateway/top-up",
-		"payment.gateway.timeout-ms=5000"
+		"payment.gateway.timeout-ms=5000",
+		"payment.webhook.gateway-secret=test-gateway-webhook-secret"
 })
 class PaymentTopUpServiceTest {
 

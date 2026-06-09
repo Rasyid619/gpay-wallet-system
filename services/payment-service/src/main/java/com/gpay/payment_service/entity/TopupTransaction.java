@@ -90,4 +90,18 @@ public class TopupTransaction {
 		transaction.updatedAt = now;
 		return transaction;
 	}
+
+	public void markSuccess(String gatewayReference, Instant now) {
+		this.status = PaymentStatus.SUCCESS;
+		this.gatewayReference = gatewayReference;
+		this.failureReason = null;
+		this.updatedAt = now;
+	}
+
+	public void markFailed(String gatewayReference, String failureReason, Instant now) {
+		this.status = PaymentStatus.FAILED;
+		this.gatewayReference = gatewayReference;
+		this.failureReason = failureReason;
+		this.updatedAt = now;
+	}
 }

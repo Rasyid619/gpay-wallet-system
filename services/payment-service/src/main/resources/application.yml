@@ -37,3 +37,5 @@ payment:
   gateway:
     top-up-url: ${PAYMENT_GATEWAY_TOP_UP_URL}
     timeout-ms: ${PAYMENT_GATEWAY_TIMEOUT_MS}
+  webhook:
+    gateway-secret: ${PAYMENT_GATEWAY_WEBHOOK_SECRET}

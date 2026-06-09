@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gpay.payment_service.config.SecurityConfig;
+import com.gpay.payment_service.dto.GatewayWebhookResponse;
 import com.gpay.payment_service.dto.IdempotentResponse;
 import com.gpay.payment_service.dto.TopUpRequest;
 import com.gpay.payment_service.dto.TopUpResponse;
@@ -18,6 +19,7 @@ import com.gpay.payment_service.exception.RateLimitUnavailableException;
 import com.gpay.payment_service.security.JwtAuthFilter;
 import com.gpay.payment_service.security.JwtService;
 import com.gpay.payment_service.service.PaymentTopUpService;
+import com.gpay.payment_service.service.PaymentWebhookService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
@@ -43,7 +45,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestPropertySource(properties = {
 		"jwt.secret=test-secret-minimum-32-characters-long",
 		"payment.gateway.top-up-url=http://localhost:8084/mock-gateway/top-up",
-		"payment.gateway.timeout-ms=5000"
+		"payment.gateway.timeout-ms=5000",
+		"payment.webhook.gateway-secret=test-gateway-webhook-secret"
 })
 class PaymentControllerTest {
 
@@ -54,6 +57,46 @@ class PaymentControllerTest {
 
 	@MockitoBean
 	private PaymentTopUpService paymentTopUpService;
+
+	@MockitoBean
+	private PaymentWebhookService paymentWebhookService;
+
+	@Test
+	void acceptsGatewayWebhookWithoutJwt() throws Exception {
+		UUID paymentTransactionId = UUID.randomUUID();
+		when(paymentWebhookService.processGatewayWebhook(
+				eq("signature"),
+				eq("2026-06-09T10:00:00Z"),
+				any(String.class)))
+				.thenReturn(new GatewayWebhookResponse(paymentTransactionId, "SUCCESS"));
+
+		mockMvc.perform(post("/payments/webhook/gateway")
+						.header("X-Gateway-Signature", "signature")
+						.header("X-Gateway-Timestamp", "2026-06-09T10:00:00Z")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "payment_transaction_id": "%s",
+								  "wallet_id": "%s",
+								  "amount": 75000,
+								  "status": "SUCCESS",
+								  "gateway_reference": "gw-reference"
+								}
+								""".formatted(paymentTransactionId, UUID.randomUUID())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.payment_transaction_id").value(paymentTransactionId.toString()))
+				.andExpect(jsonPath("$.status").value("SUCCESS"));
+	}
+
+	@Test
+	void returnsBadRequestWhenGatewaySignatureHeaderIsMissing() throws Exception {
+		mockMvc.perform(post("/payments/webhook/gateway")
+						.header("X-Gateway-Timestamp", "2026-06-09T10:00:00Z")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+	}
 
 	@Test
 	void returnsCreatedTopUpForAuthenticatedUser() throws Exception {
