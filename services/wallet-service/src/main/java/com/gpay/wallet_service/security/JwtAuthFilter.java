@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,15 +22,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>The authenticated principal is the user UUID from the token subject.
  */
 @Component
+@RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
 	private static final String BEARER_PREFIX = "Bearer ";
 
 	private final JwtService jwtService;
-
-	public JwtAuthFilter(JwtService jwtService) {
-		this.jwtService = jwtService;
-	}
 
 	@Override
 	protected void doFilterInternal(

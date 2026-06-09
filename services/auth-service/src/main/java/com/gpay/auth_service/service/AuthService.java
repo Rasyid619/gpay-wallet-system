@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /* Handles authentication business logic. */
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -36,20 +38,8 @@ public class AuthService {
 	private final RefreshTokenRepository refreshTokenRepository;
 	private final JwtService jwtService;
 	private final PasswordEncoder passwordEncoder;
-	private final int refreshTokenExpirationDays;
-
-	public AuthService(
-			UserRepository userRepository,
-			RefreshTokenRepository refreshTokenRepository,
-			JwtService jwtService,
-			PasswordEncoder passwordEncoder,
-			@Value("${jwt.refresh-token-expiration-days}") int refreshTokenExpirationDays) {
-		this.userRepository = userRepository;
-		this.refreshTokenRepository = refreshTokenRepository;
-		this.jwtService = jwtService;
-		this.passwordEncoder = passwordEncoder;
-		this.refreshTokenExpirationDays = refreshTokenExpirationDays;
-	}
+	@Value("${jwt.refresh-token-expiration-days}")
+	private int refreshTokenExpirationDays;
 
 	/**
 	 * Returns the profile of the authenticated user.

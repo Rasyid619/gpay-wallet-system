@@ -4,6 +4,7 @@ import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.InternalWalletCreditRequest;
 import com.gpay.wallet_service.service.InternalWalletCreditService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,13 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 /* Internal wallet endpoints for service-to-service workflows. */
 @RestController
 @RequestMapping("/internal/wallets")
+@RequiredArgsConstructor
 public class InternalWalletController {
 
 	private final InternalWalletCreditService internalWalletCreditService;
-
-	public InternalWalletController(InternalWalletCreditService internalWalletCreditService) {
-		this.internalWalletCreditService = internalWalletCreditService;
-	}
 
 	@PostMapping("/credit")
 	public ResponseEntity<Object> credit(

@@ -9,6 +9,7 @@ import com.gpay.auth_service.dto.UserMeResponse;
 import com.gpay.auth_service.service.AuthService;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,13 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 /* Auth endpoints for user identity and token management. */
 @RestController
 @RequestMapping("/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
 	private final AuthService authService;
-
-	public AuthController(AuthService authService) {
-		this.authService = authService;
-	}
 
 	@GetMapping("/me")
 	public ResponseEntity<UserMeResponse> getMe(@AuthenticationPrincipal UUID userId) {
