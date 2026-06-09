@@ -932,6 +932,78 @@
             },
             "description": "Expected: 401 Unauthorized when token is invalid or expired."
           }
+        },
+        {
+          "name": "Create Top-Up — Rate Limit Exceeded (expect 429)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 429', () => pm.response.to.have.status(429));",
+                  "pm.test('Error code is RATE_LIMIT_EXCEEDED', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('RATE_LIMIT_EXCEEDED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Idempotency-Key", "value": "topup-rate-limit-{{$guid}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": ["{{payment_url}}"],
+              "path": ["payments", "top-up"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000\n}"
+            },
+            "description": "Expected after more than 5 top-up requests in the same minute for one authenticated user."
+          }
+        },
+        {
+          "name": "Create Top-Up — Redis Unavailable (expect 503)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 503', () => pm.response.to.have.status(503));",
+                  "pm.test('Error code is RATE_LIMIT_UNAVAILABLE', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('RATE_LIMIT_UNAVAILABLE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Idempotency-Key", "value": "topup-redis-down-{{$guid}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": ["{{payment_url}}"],
+              "path": ["payments", "top-up"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000\n}"
+            },
+            "description": "Expected when Redis is unavailable and Payment Service fails closed for top-up requests."
+          }
         }
       ]
     }

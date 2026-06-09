@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * Integration tests for payment top-up creation and durable idempotency.
@@ -28,6 +29,9 @@ class PaymentTopUpServiceTest {
 
 	@Autowired
 	private PaymentTopUpService paymentTopUpService;
+
+	@MockitoBean
+	private PaymentRateLimiter paymentRateLimiter;
 
 	@Autowired
 	private TopupTransactionRepository topupTransactionRepository;

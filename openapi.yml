@@ -276,6 +276,10 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
 components:
   parameters:
@@ -361,6 +365,24 @@ components:
             message: Resource was not found
     Unauthorized:
       description: Authentication is missing or invalid.
+    TooManyRequests:
+      description: The authenticated user exceeded the payment top-up rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: RATE_LIMIT_EXCEEDED
+            message: Maximum 5 payment requests per minute allowed
+    ServiceUnavailable:
+      description: The service cannot safely process the request because a required dependency is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: RATE_LIMIT_UNAVAILABLE
+            message: Payment rate limit cannot be verified
     WalletNotFound:
       description: Wallet row was not found for the authenticated user.
       content:
