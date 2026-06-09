@@ -69,4 +69,26 @@ public class Wallet {
 		wallet.updatedAt = updatedAt;
 		return wallet;
 	}
+
+	/**
+	 * Debits this wallet balance.
+	 *
+	 * @param amount    amount in whole IDR
+	 * @param updatedAt balance update timestamp
+	 */
+	public void debit(Long amount, Instant updatedAt) {
+		this.balance = this.balance - amount;
+		this.updatedAt = updatedAt;
+	}
+
+	/**
+	 * Credits this wallet balance.
+	 *
+	 * @param amount    amount in whole IDR
+	 * @param updatedAt balance update timestamp
+	 */
+	public void credit(Long amount, Instant updatedAt) {
+		this.balance = this.balance + amount;
+		this.updatedAt = updatedAt;
+	}
 }
