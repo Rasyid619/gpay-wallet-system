@@ -77,4 +77,24 @@ public class OutboxEvent {
 		event.updatedAt = now;
 		return event;
 	}
+
+	public void markProcessing(Instant now) {
+		this.status = OutboxEventStatus.PROCESSING;
+		this.updatedAt = now;
+	}
+
+	public void markProcessed(Instant now) {
+		this.status = OutboxEventStatus.PROCESSED;
+		this.lastError = null;
+		this.nextRetryAt = null;
+		this.updatedAt = now;
+	}
+
+	public void markFailedAttempt(String error, Instant nextRetryAt, Instant now) {
+		this.status = OutboxEventStatus.PENDING;
+		this.retryCount = this.retryCount + 1;
+		this.lastError = error;
+		this.nextRetryAt = nextRetryAt;
+		this.updatedAt = now;
+	}
 }

@@ -182,6 +182,14 @@ WALLET_INTERNAL_TOKEN
 PAYMENT_GATEWAY_TOP_UP_URL
 PAYMENT_GATEWAY_TIMEOUT_MS
 PAYMENT_GATEWAY_WEBHOOK_SECRET
+PAYMENT_WALLET_CREDIT_URL
+PAYMENT_WALLET_INTERNAL_TOKEN
+PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS
+PAYMENT_OUTBOX_RETRY_DELAY_MS
+PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS
+PAYMENT_OUTBOX_BATCH_SIZE
+PAYMENT_OUTBOX_WORKER_FIXED_DELAY_MS
+PAYMENT_OUTBOX_WORKER_INITIAL_DELAY_MS
 PAYMENT_WEBHOOK_URL
 GATEWAY_WEBHOOK_SECRET
 MOCK_GATEWAY_TIMEOUT_DELAY_MS
@@ -203,6 +211,12 @@ the required 5-second payment gateway timeout.
 `GATEWAY_WEBHOOK_SECRET` so Payment Service can validate gateway callbacks.
 Successful gateway callbacks create one pending wallet-credit outbox event in
 `payment_db`; duplicate successful callbacks do not create duplicate credit work.
+`PAYMENT_WALLET_CREDIT_URL` should point to Wallet Service
+`/internal/wallets/credit`, and `PAYMENT_WALLET_INTERNAL_TOKEN` must match
+Wallet Service's `WALLET_INTERNAL_TOKEN`. The payment outbox worker sends this
+token with each wallet-credit delivery and uses durable payment outbox event IDs
+for wallet idempotency. `PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS` controls when a
+stuck `PROCESSING` outbox event is moved back to retryable `PENDING` state.
 
 ## Running Services
 
@@ -227,6 +241,14 @@ cd services/payment-service
 PAYMENT_GATEWAY_TOP_UP_URL=http://localhost:8084/mock-gateway/top-up \
 PAYMENT_GATEWAY_TIMEOUT_MS=5000 \
 PAYMENT_GATEWAY_WEBHOOK_SECRET=dev-gateway-webhook-secret-change-me \
+PAYMENT_WALLET_CREDIT_URL=http://localhost:8082/internal/wallets/credit \
+PAYMENT_WALLET_INTERNAL_TOKEN=dev-internal-token-change-me \
+PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS=5000 \
+PAYMENT_OUTBOX_RETRY_DELAY_MS=60000 \
+PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS=300000 \
+PAYMENT_OUTBOX_BATCH_SIZE=10 \
+PAYMENT_OUTBOX_WORKER_FIXED_DELAY_MS=5000 \
+PAYMENT_OUTBOX_WORKER_INITIAL_DELAY_MS=5000 \
 ./gradlew bootRun
 ```
 
