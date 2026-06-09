@@ -1,0 +1,9 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: mock-gateway-service
+
+mock-gateway:
+  timeout-delay-ms: ${MOCK_GATEWAY_TIMEOUT_DELAY_MS:6000}

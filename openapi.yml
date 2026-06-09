@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: GPay Wallet System API
   version: 0.1.0
-  description: Implemented API contract for the Auth Service, Wallet Service, and Payment Service.
+  description: Implemented API contract for the Auth Service, Wallet Service, Payment Service, and Mock Gateway Service.
 
 servers:
   - url: http://localhost:8081
@@ -11,6 +11,8 @@ servers:
     description: Local Wallet Service.
   - url: http://localhost:8083
     description: Local Payment Service.
+  - url: http://localhost:8084
+    description: Local Mock Gateway Service.
 
 tags:
   - name: Auth
@@ -19,6 +21,8 @@ tags:
     description: Internal service-to-service wallet operations.
   - name: Payment
     description: Operations for authenticated payment top-up workflows.
+  - name: Mock Gateway
+    description: Operations for mock payment gateway simulations.
   - name: Wallet
     description: Operations for authenticated wallet balance, mutation history, and transfers.
 
@@ -280,6 +284,31 @@ paths:
           $ref: "#/components/responses/TooManyRequests"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+
+  /mock-gateway/top-up:
+    post:
+      tags:
+        - Mock Gateway
+      summary: Simulate a gateway top-up request.
+      description: Accepts a mock gateway simulation request. SUCCESS and FAILED return immediately; TIMEOUT delays using the service timeout simulation setting.
+      servers:
+        - url: http://localhost:8084
+          description: Local Mock Gateway Service.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MockGatewayTopUpCreateRequest"
+      responses:
+        "200":
+          description: Gateway simulation response was returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MockGatewayTopUpShowResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
 components:
   parameters:
@@ -743,3 +772,74 @@ components:
         created_at:
           type: string
           format: date-time
+
+    MockGatewayTopUpCreateRequest:
+      type: object
+      required:
+        - payment_transaction_id
+        - wallet_id
+        - amount
+        - mode
+      properties:
+        payment_transaction_id:
+          type: string
+          format: uuid
+          description: Payment-service transaction identifier being simulated by the gateway.
+        wallet_id:
+          type: string
+          format: uuid
+          description: Wallet intended to receive the top-up credit.
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Top-up amount in whole IDR.
+          example: 75000
+        mode:
+          type: string
+          enum:
+            - SUCCESS
+            - FAILED
+            - TIMEOUT
+          description: Gateway behavior to simulate.
+
+    MockGatewayTopUpShowResponse:
+      type: object
+      required:
+        - payment_transaction_id
+        - wallet_id
+        - amount
+        - mode
+        - status
+        - gateway_reference
+        - message
+      properties:
+        payment_transaction_id:
+          type: string
+          format: uuid
+        wallet_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          format: int64
+          description: Top-up amount in whole IDR.
+          example: 75000
+        mode:
+          type: string
+          enum:
+            - SUCCESS
+            - FAILED
+            - TIMEOUT
+        status:
+          type: string
+          enum:
+            - SUCCESS
+            - FAILED
+            - TIMEOUT
+        gateway_reference:
+          type: string
+          example: gw-4f437123-8c2d-41c5-9300-a0f8f72fd6e3
+        message:
+          type: string
+          example: Gateway accepted successful top-up simulation

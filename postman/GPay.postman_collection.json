@@ -1006,6 +1006,156 @@
           }
         }
       ]
+    },
+    {
+      "name": "Mock Gateway",
+      "item": [
+        {
+          "name": "Top-Up SUCCESS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has mock gateway details', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.payment_transaction_id).to.be.a('string');",
+                  "  pm.expect(body.wallet_id).to.eql(pm.variables.replaceIn('{{topup_wallet_id}}'));",
+                  "  pm.expect(body.amount).to.eql(75000);",
+                  "  pm.expect(body.mode).to.eql('SUCCESS');",
+                  "  pm.expect(body.status).to.eql('SUCCESS');",
+                  "  pm.expect(body.gateway_reference).to.match(/^gw-/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/mock-gateway/top-up",
+              "host": ["{{gateway_url}}"],
+              "path": ["mock-gateway", "top-up"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_transaction_id\": \"{{$guid}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"mode\": \"SUCCESS\"\n}"
+            },
+            "description": "Simulates a successful top-up response from the mock gateway."
+          }
+        },
+        {
+          "name": "Top-Up FAILED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has failed mock gateway details', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.mode).to.eql('FAILED');",
+                  "  pm.expect(body.status).to.eql('FAILED');",
+                  "  pm.expect(body.gateway_reference).to.match(/^gw-/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/mock-gateway/top-up",
+              "host": ["{{gateway_url}}"],
+              "path": ["mock-gateway", "top-up"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_transaction_id\": \"{{$guid}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"mode\": \"FAILED\"\n}"
+            },
+            "description": "Simulates a failed top-up response from the mock gateway."
+          }
+        },
+        {
+          "name": "Top-Up TIMEOUT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 after delay', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has timeout mock gateway details', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.mode).to.eql('TIMEOUT');",
+                  "  pm.expect(body.status).to.eql('TIMEOUT');",
+                  "  pm.expect(body.gateway_reference).to.match(/^gw-/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/mock-gateway/top-up",
+              "host": ["{{gateway_url}}"],
+              "path": ["mock-gateway", "top-up"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_transaction_id\": \"{{$guid}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"mode\": \"TIMEOUT\"\n}"
+            },
+            "description": "Simulates a slow gateway response. Default local delay is 6000 ms, configurable with MOCK_GATEWAY_TIMEOUT_DELAY_MS."
+          }
+        },
+        {
+          "name": "Top-Up Invalid Mode (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is VALIDATION_ERROR', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/mock-gateway/top-up",
+              "host": ["{{gateway_url}}"],
+              "path": ["mock-gateway", "top-up"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_transaction_id\": \"{{$guid}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"mode\": \"UNKNOWN\"\n}"
+            },
+            "description": "Expected: 400 Bad Request when the gateway mode is unsupported."
+          }
+        }
+      ]
     }
   ]
 }
