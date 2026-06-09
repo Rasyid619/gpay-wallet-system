@@ -171,14 +171,20 @@ environment variables.
 Important environment variables:
 
 ```text
-JWT_SECRET
 AUTH_DB_URL
 AUTH_DB_USERNAME
 AUTH_DB_PASSWORD
+JWT_SECRET
+WALLET_DB_PASSWORD
 WALLET_DB_URL
 WALLET_DB_USERNAME
-WALLET_DB_PASSWORD
+WALLET_INTERNAL_TOKEN
 ```
+
+`WALLET_INTERNAL_TOKEN` protects internal wallet-service endpoints such as
+`POST /internal/wallets/credit`. Set the same value in wallet-service runtime
+configuration and in trusted service-to-service clients. For local Postman
+testing, set the collection variable `internal_token` to the same value.
 
 ## Running Services
 
@@ -193,7 +199,7 @@ Wallet Service:
 
 ```bash
 cd services/wallet-service
-./gradlew bootRun
+WALLET_INTERNAL_TOKEN=dev-internal-token-change-me ./gradlew bootRun
 ```
 
 ## Running Tests

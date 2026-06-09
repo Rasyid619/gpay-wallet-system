@@ -33,4 +33,18 @@ public interface WalletRepository extends JpaRepository<Wallet, UUID> {
 			FOR UPDATE
 			""", nativeQuery = true)
 	List<Wallet> findAllByIdInForUpdate(@Param("walletIds") List<UUID> walletIds);
+
+	/**
+	 * Locks one wallet row for a balance-changing workflow.
+	 *
+	 * @param walletId wallet identifier to lock
+	 * @return locked wallet row when it exists
+	 */
+	@Query(value = """
+			SELECT id, user_id, balance, status, created_at, updated_at
+			FROM wallets
+			WHERE id = :walletId
+			FOR UPDATE
+			""", nativeQuery = true)
+	Optional<Wallet> findByIdForUpdate(@Param("walletId") UUID walletId);
 }

@@ -13,6 +13,8 @@ servers:
 tags:
   - name: Auth
     description: Operations for user identity, access tokens, and refresh tokens.
+  - name: Internal Wallet
+    description: Internal service-to-service wallet operations.
   - name: Wallet
     description: Operations for authenticated wallet balance, mutation history, and transfers.
 
@@ -203,6 +205,41 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /internal/wallets/credit:
+    post:
+      tags:
+        - Internal Wallet
+      summary: Credit a wallet from payment-service.
+      description: Internal endpoint used by payment-service outbox retry to credit a wallet after a successful top-up. Requires internal token authentication, Idempotency-Key, and idempotency by payment_transaction_id.
+      servers:
+        - url: http://localhost:8082
+          description: Local Wallet Service.
+      security:
+        - InternalTokenAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InternalWalletCreditCreateRequest"
+      responses:
+        "200":
+          description: Wallet credit response was returned. Retries for the same payment transaction return the stored response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalWalletCreditShowResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/WalletNotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
 components:
   parameters:
     IdempotencyKey:
@@ -272,6 +309,10 @@ components:
               value:
                 error: IDEMPOTENCY_KEY_CONFLICT
                 message: Idempotency key was already used with a different request
+            payment_transaction_conflict:
+              value:
+                error: PAYMENT_TRANSACTION_CONFLICT
+                message: Payment transaction was already credited with a different request
     NotFound:
       description: The requested resource was not found.
       content:
@@ -308,6 +349,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    InternalTokenAuth:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
 
   schemas:
     ErrorResponse:
@@ -541,5 +586,56 @@ components:
           enum:
             - SUCCESS
         created_at:
+          type: string
+          format: date-time
+
+    InternalWalletCreditCreateRequest:
+      type: object
+      required:
+        - wallet_id
+        - payment_transaction_id
+        - amount
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+          description: Wallet that receives the top-up credit.
+        payment_transaction_id:
+          type: string
+          format: uuid
+          description: Payment-service transaction identifier used for idempotency.
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Credit amount in whole IDR.
+          example: 50000
+
+    InternalWalletCreditShowResponse:
+      type: object
+      required:
+        - wallet_id
+        - payment_transaction_id
+        - amount
+        - balance_after
+        - credited_at
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+        payment_transaction_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          format: int64
+          description: Credited amount in whole IDR.
+          example: 50000
+        balance_after:
+          type: integer
+          format: int64
+          description: Wallet balance after credit in whole IDR.
+          example: 150000
+        credited_at:
           type: string
           format: date-time

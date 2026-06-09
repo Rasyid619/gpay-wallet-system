@@ -40,6 +40,21 @@
       "key": "receiver_wallet_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "internal_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "credit_wallet_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_transaction_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -687,6 +702,117 @@
               "raw": "{\n  \"receiver_wallet_id\": \"{{receiver_wallet_id}}\",\n  \"amount\": 25000\n}"
             },
             "description": "Expected: 401 Unauthorized when token is invalid or expired."
+          }
+        },
+        {
+          "name": "Internal Credit Wallet",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has credit details', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.wallet_id).to.be.a('string');",
+                  "  pm.expect(body.payment_transaction_id).to.be.a('string');",
+                  "  pm.expect(body.amount).to.be.a('number');",
+                  "  pm.expect(body.balance_after).to.be.a('number');",
+                  "  pm.expect(body.credited_at).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Internal-Token", "value": "{{internal_token}}" },
+              { "key": "Idempotency-Key", "value": "credit-{{$guid}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/internal/wallets/credit",
+              "host": ["{{wallet_url}}"],
+              "path": ["internal", "wallets", "credit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{credit_wallet_id}}\",\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"amount\": 50000\n}"
+            },
+            "description": "Internal payment-service outbox delivery endpoint. Set internal_token from WALLET_INTERNAL_TOKEN before running."
+          }
+        },
+        {
+          "name": "Internal Credit Wallet — Invalid Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error code is UNAUTHORIZED', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('UNAUTHORIZED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Internal-Token", "value": "invalid-internal-token" },
+              { "key": "Idempotency-Key", "value": "credit-invalid-token-{{$guid}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/internal/wallets/credit",
+              "host": ["{{wallet_url}}"],
+              "path": ["internal", "wallets", "credit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{credit_wallet_id}}\",\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"amount\": 50000\n}"
+            },
+            "description": "Expected: 401 Unauthorized when X-Internal-Token does not match WALLET_INTERNAL_TOKEN."
+          }
+        },
+        {
+          "name": "Internal Credit Wallet — No Idempotency Key (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is VALIDATION_ERROR', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Internal-Token", "value": "{{internal_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/internal/wallets/credit",
+              "host": ["{{wallet_url}}"],
+              "path": ["internal", "wallets", "credit"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{credit_wallet_id}}\",\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"amount\": 50000\n}"
+            },
+            "description": "Expected: 400 Bad Request when Idempotency-Key header is missing."
           }
         }
       ]
