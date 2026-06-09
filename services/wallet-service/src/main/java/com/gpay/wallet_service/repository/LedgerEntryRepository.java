@@ -1,6 +1,7 @@
 package com.gpay.wallet_service.repository;
 
 import com.gpay.wallet_service.entity.LedgerEntry;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,4 +20,12 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
 	 */
 	@EntityGraph(attributePaths = "transfer")
 	Page<LedgerEntry> findByWalletUserId(UUID userId, Pageable pageable);
+
+	/**
+	 * Finds the top-up ledger entry created for a payment transaction.
+	 *
+	 * @param paymentTransactionId payment transaction identifier
+	 * @return ledger entry when the payment transaction was already credited
+	 */
+	Optional<LedgerEntry> findByPaymentTransactionId(UUID paymentTransactionId);
 }

@@ -18,4 +18,12 @@ public interface IdempotencyKeyRepository extends JpaRepository<IdempotencyKey, 
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<IdempotencyKey> findByIdempotencyKey(String idempotencyKey);
+
+	/**
+	 * Checks whether an idempotency key exists without taking a lock.
+	 *
+	 * @param idempotencyKey client-provided idempotency key
+	 * @return true when the key exists
+	 */
+	boolean existsByIdempotencyKey(String idempotencyKey);
 }

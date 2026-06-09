@@ -24,6 +24,18 @@ public class GlobalExceptionHandler {
 				.body(Map.of("error", "IDEMPOTENCY_KEY_CONFLICT", "message", ex.getMessage()));
 	}
 
+	@ExceptionHandler(PaymentTransactionConflictException.class)
+	public ResponseEntity<Map<String, String>> handlePaymentTransactionConflict(PaymentTransactionConflictException ex) {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(Map.of("error", "PAYMENT_TRANSACTION_CONFLICT", "message", ex.getMessage()));
+	}
+
+	@ExceptionHandler(InternalAuthenticationException.class)
+	public ResponseEntity<Map<String, String>> handleInternalAuthentication(InternalAuthenticationException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+				.body(Map.of("error", "UNAUTHORIZED", "message", ex.getMessage()));
+	}
+
 	@ExceptionHandler(BadRequestException.class)
 	public ResponseEntity<Map<String, String>> handleBadRequest(BadRequestException ex) {
 		return ResponseEntity.badRequest()
