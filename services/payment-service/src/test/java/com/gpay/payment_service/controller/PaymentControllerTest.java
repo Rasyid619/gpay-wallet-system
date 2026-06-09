@@ -13,6 +13,8 @@ import com.gpay.payment_service.dto.IdempotentResponse;
 import com.gpay.payment_service.dto.TopUpRequest;
 import com.gpay.payment_service.dto.TopUpResponse;
 import com.gpay.payment_service.exception.GlobalExceptionHandler;
+import com.gpay.payment_service.exception.RateLimitExceededException;
+import com.gpay.payment_service.exception.RateLimitUnavailableException;
 import com.gpay.payment_service.security.JwtAuthFilter;
 import com.gpay.payment_service.security.JwtService;
 import com.gpay.payment_service.service.PaymentTopUpService;
@@ -149,6 +151,58 @@ class PaymentControllerTest {
 				.andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
 
 		verifyNoInteractions(paymentTopUpService);
+	}
+
+	@Test
+	void returnsTooManyRequestsWhenRateLimitIsExceeded() throws Exception {
+		UUID userId = UUID.randomUUID();
+		UUID walletId = UUID.randomUUID();
+		when(paymentTopUpService.topUp(
+				eq(userId),
+				eq("topup-key-rate-limit"),
+				any(TopUpRequest.class),
+				eq(null)))
+				.thenThrow(new RateLimitExceededException("Maximum 5 payment requests per minute allowed"));
+
+		mockMvc.perform(post("/payments/top-up")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(userId))
+						.header("Idempotency-Key", "topup-key-rate-limit")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "wallet_id": "%s",
+								  "amount": 75000
+								}
+								""".formatted(walletId)))
+				.andExpect(status().isTooManyRequests())
+				.andExpect(jsonPath("$.error").value("RATE_LIMIT_EXCEEDED"))
+				.andExpect(jsonPath("$.message").value("Maximum 5 payment requests per minute allowed"));
+	}
+
+	@Test
+	void returnsServiceUnavailableWhenRateLimitCannotBeVerified() throws Exception {
+		UUID userId = UUID.randomUUID();
+		UUID walletId = UUID.randomUUID();
+		when(paymentTopUpService.topUp(
+				eq(userId),
+				eq("topup-key-redis-down"),
+				any(TopUpRequest.class),
+				eq(null)))
+				.thenThrow(new RateLimitUnavailableException("Payment rate limit cannot be verified"));
+
+		mockMvc.perform(post("/payments/top-up")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(userId))
+						.header("Idempotency-Key", "topup-key-redis-down")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "wallet_id": "%s",
+								  "amount": 75000
+								}
+								""".formatted(walletId)))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.error").value("RATE_LIMIT_UNAVAILABLE"))
+				.andExpect(jsonPath("$.message").value("Payment rate limit cannot be verified"));
 	}
 
 	private String createToken(UUID userId) {

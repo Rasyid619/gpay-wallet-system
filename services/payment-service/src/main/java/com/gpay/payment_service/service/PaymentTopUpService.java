@@ -31,6 +31,7 @@ public class PaymentTopUpService {
 
 	private final IdempotencyKeyRepository idempotencyKeyRepository;
 	private final ObjectMapper objectMapper;
+	private final PaymentRateLimiter paymentRateLimiter;
 	private final TopupTransactionRepository topupTransactionRepository;
 
 	/**
@@ -51,6 +52,8 @@ public class PaymentTopUpService {
 		if (idempotencyKey == null || idempotencyKey.isBlank()) {
 			throw new BadRequestException("Idempotency-Key header is required");
 		}
+
+		paymentRateLimiter.checkTopUpAllowed(userId);
 
 		String requestHash = hashRequest(request);
 		Optional<IdempotencyKey> existing = idempotencyKeyRepository.findByUserIdAndIdempotencyKey(
