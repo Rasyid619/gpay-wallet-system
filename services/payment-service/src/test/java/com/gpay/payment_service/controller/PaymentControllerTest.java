@@ -40,7 +40,11 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @WebMvcTest(PaymentController.class)
 @Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class})
-@TestPropertySource(properties = "jwt.secret=test-secret-minimum-32-characters-long")
+@TestPropertySource(properties = {
+		"jwt.secret=test-secret-minimum-32-characters-long",
+		"payment.gateway.top-up-url=http://localhost:8084/mock-gateway/top-up",
+		"payment.gateway.timeout-ms=5000"
+})
 class PaymentControllerTest {
 
 	private static final String JWT_SECRET = "test-secret-minimum-32-characters-long";
@@ -74,7 +78,8 @@ class PaymentControllerTest {
 						.content("""
 								{
 								  "wallet_id": "%s",
-								  "amount": 75000
+								  "amount": 75000,
+								  "gateway_mode": "SUCCESS"
 								}
 								""".formatted(walletId)))
 				.andExpect(status().isCreated())
@@ -93,7 +98,8 @@ class PaymentControllerTest {
 						.content("""
 								{
 								  "wallet_id": "%s",
-								  "amount": 75000
+								  "amount": 75000,
+								  "gateway_mode": "SUCCESS"
 								}
 								""".formatted(UUID.randomUUID())))
 				.andExpect(status().isUnauthorized());
@@ -110,7 +116,8 @@ class PaymentControllerTest {
 						.content("""
 								{
 								  "wallet_id": "%s",
-								  "amount": 75000
+								  "amount": 75000,
+								  "gateway_mode": "SUCCESS"
 								}
 								""".formatted(UUID.randomUUID())))
 				.andExpect(status().isUnauthorized());
@@ -126,7 +133,8 @@ class PaymentControllerTest {
 						.content("""
 								{
 								  "wallet_id": "%s",
-								  "amount": 75000
+								  "amount": 75000,
+								  "gateway_mode": "SUCCESS"
 								}
 								""".formatted(UUID.randomUUID())))
 				.andExpect(status().isBadRequest())
@@ -144,7 +152,8 @@ class PaymentControllerTest {
 						.content("""
 								{
 								  "wallet_id": "%s",
-								  "amount": 0
+								  "amount": 0,
+								  "gateway_mode": "SUCCESS"
 								}
 								""".formatted(UUID.randomUUID())))
 				.andExpect(status().isBadRequest())
@@ -171,7 +180,8 @@ class PaymentControllerTest {
 						.content("""
 								{
 								  "wallet_id": "%s",
-								  "amount": 75000
+								  "amount": 75000,
+								  "gateway_mode": "SUCCESS"
 								}
 								""".formatted(walletId)))
 				.andExpect(status().isTooManyRequests())
@@ -197,7 +207,8 @@ class PaymentControllerTest {
 						.content("""
 								{
 								  "wallet_id": "%s",
-								  "amount": 75000
+								  "amount": 75000,
+								  "gateway_mode": "SUCCESS"
 								}
 								""".formatted(walletId)))
 				.andExpect(status().isServiceUnavailable())
