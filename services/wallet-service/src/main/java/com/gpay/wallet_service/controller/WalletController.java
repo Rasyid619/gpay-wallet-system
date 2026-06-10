@@ -1,5 +1,6 @@
 package com.gpay.wallet_service.controller;
 
+import com.gpay.wallet_service.config.TraceIdContext;
 import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.TransferRequest;
 import com.gpay.wallet_service.dto.WalletBalanceResponse;
@@ -46,9 +47,12 @@ public class WalletController {
 	public ResponseEntity<Object> transfer(
 			@AuthenticationPrincipal UUID userId,
 			@RequestHeader("Idempotency-Key") String idempotencyKey,
-			@RequestHeader(value = "X-Trace-Id", required = false) String traceId,
 			@Valid @RequestBody TransferRequest request) {
-		IdempotentResponse response = walletTransferService.transfer(userId, idempotencyKey, request, traceId);
+		IdempotentResponse response = walletTransferService.transfer(
+				userId,
+				idempotencyKey,
+				request,
+				TraceIdContext.getTraceId());
 		return ResponseEntity.status(response.status()).body(response.body());
 	}
 }

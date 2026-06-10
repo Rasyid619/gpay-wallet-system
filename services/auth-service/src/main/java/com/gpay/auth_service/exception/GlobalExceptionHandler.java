@@ -1,5 +1,7 @@
 package com.gpay.auth_service.exception;
 
+import com.gpay.auth_service.config.TraceIdContext;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,19 +16,19 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(UnauthorizedException.class)
 	public ResponseEntity<Map<String, String>> handleUnauthorized(UnauthorizedException ex) {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-				.body(Map.of("error", "UNAUTHORIZED", "message", ex.getMessage()));
+				.body(errorBody("UNAUTHORIZED", ex.getMessage()));
 	}
 
 	@ExceptionHandler(ConflictException.class)
 	public ResponseEntity<Map<String, String>> handleConflict(ConflictException ex) {
 		return ResponseEntity.status(HttpStatus.CONFLICT)
-				.body(Map.of("error", "EMAIL_ALREADY_REGISTERED", "message", ex.getMessage()));
+				.body(errorBody("EMAIL_ALREADY_REGISTERED", ex.getMessage()));
 	}
 
 	@ExceptionHandler(NotFoundException.class)
 	public ResponseEntity<Map<String, String>> handleNotFound(NotFoundException ex) {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND)
-				.body(Map.of("error", "NOT_FOUND", "message", ex.getMessage()));
+				.body(errorBody("NOT_FOUND", ex.getMessage()));
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
@@ -38,6 +40,14 @@ public class GlobalExceptionHandler {
 				.findFirst()
 				.orElse("Invalid request");
 		return ResponseEntity.badRequest()
-				.body(Map.of("error", "VALIDATION_ERROR", "message", message));
+				.body(errorBody("VALIDATION_ERROR", message));
+	}
+
+	private Map<String, String> errorBody(String error, String message) {
+		Map<String, String> body = new LinkedHashMap<>();
+		body.put("error", error);
+		body.put("message", message);
+		body.put("trace_id", TraceIdContext.getTraceId());
+		return body;
 	}
 }

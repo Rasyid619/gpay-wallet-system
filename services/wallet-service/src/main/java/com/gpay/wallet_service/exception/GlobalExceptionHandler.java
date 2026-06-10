@@ -1,5 +1,7 @@
 package com.gpay.wallet_service.exception;
 
+import com.gpay.wallet_service.config.TraceIdContext;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,37 +17,37 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(WalletNotFoundException.class)
 	public ResponseEntity<Map<String, String>> handleWalletNotFound(WalletNotFoundException ex) {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND)
-				.body(Map.of("error", "WALLET_NOT_FOUND", "message", ex.getMessage()));
+				.body(errorBody("WALLET_NOT_FOUND", ex.getMessage()));
 	}
 
 	@ExceptionHandler(IdempotencyConflictException.class)
 	public ResponseEntity<Map<String, String>> handleIdempotencyConflict(IdempotencyConflictException ex) {
 		return ResponseEntity.status(HttpStatus.CONFLICT)
-				.body(Map.of("error", "IDEMPOTENCY_KEY_CONFLICT", "message", ex.getMessage()));
+				.body(errorBody("IDEMPOTENCY_KEY_CONFLICT", ex.getMessage()));
 	}
 
 	@ExceptionHandler(PaymentTransactionConflictException.class)
 	public ResponseEntity<Map<String, String>> handlePaymentTransactionConflict(PaymentTransactionConflictException ex) {
 		return ResponseEntity.status(HttpStatus.CONFLICT)
-				.body(Map.of("error", "PAYMENT_TRANSACTION_CONFLICT", "message", ex.getMessage()));
+				.body(errorBody("PAYMENT_TRANSACTION_CONFLICT", ex.getMessage()));
 	}
 
 	@ExceptionHandler(InternalAuthenticationException.class)
 	public ResponseEntity<Map<String, String>> handleInternalAuthentication(InternalAuthenticationException ex) {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-				.body(Map.of("error", "UNAUTHORIZED", "message", ex.getMessage()));
+				.body(errorBody("UNAUTHORIZED", ex.getMessage()));
 	}
 
 	@ExceptionHandler(BadRequestException.class)
 	public ResponseEntity<Map<String, String>> handleBadRequest(BadRequestException ex) {
 		return ResponseEntity.badRequest()
-				.body(Map.of("error", "VALIDATION_ERROR", "message", ex.getMessage()));
+				.body(errorBody("VALIDATION_ERROR", ex.getMessage()));
 	}
 
 	@ExceptionHandler(MissingRequestHeaderException.class)
 	public ResponseEntity<Map<String, String>> handleMissingRequestHeader(MissingRequestHeaderException ex) {
 		return ResponseEntity.badRequest()
-				.body(Map.of("error", "VALIDATION_ERROR", "message", ex.getHeaderName() + " header is required"));
+				.body(errorBody("VALIDATION_ERROR", ex.getHeaderName() + " header is required"));
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
@@ -57,6 +59,14 @@ public class GlobalExceptionHandler {
 				.findFirst()
 				.orElse("Invalid request");
 		return ResponseEntity.badRequest()
-				.body(Map.of("error", "VALIDATION_ERROR", "message", message));
+				.body(errorBody("VALIDATION_ERROR", message));
+	}
+
+	private Map<String, String> errorBody(String error, String message) {
+		Map<String, String> body = new LinkedHashMap<>();
+		body.put("error", error);
+		body.put("message", message);
+		body.put("trace_id", TraceIdContext.getTraceId());
+		return body;
 	}
 }

@@ -6,9 +6,11 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gpay.wallet_service.config.SecurityConfig;
+import com.gpay.wallet_service.config.TraceIdFilter;
 import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.InternalWalletCreditRequest;
 import com.gpay.wallet_service.dto.InternalWalletCreditResponse;
@@ -32,7 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * MVC tests for internal wallet credit access.
  */
 @WebMvcTest(InternalWalletController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class})
+@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class, TraceIdFilter.class})
 @TestPropertySource(properties = "jwt.secret=test-secret-minimum-32-characters-long")
 class InternalWalletControllerTest {
 
@@ -74,6 +76,7 @@ class InternalWalletControllerTest {
 								}
 								""".formatted(walletId, paymentTransactionId)))
 				.andExpect(status().isOk())
+				.andExpect(header().string("X-Trace-Id", "trace-credit"))
 				.andExpect(jsonPath("$.wallet_id").value(walletId.toString()))
 				.andExpect(jsonPath("$.payment_transaction_id").value(paymentTransactionId.toString()))
 				.andExpect(jsonPath("$.amount").value(50000))
@@ -94,7 +97,9 @@ class InternalWalletControllerTest {
 								}
 								""".formatted(UUID.randomUUID(), UUID.randomUUID())))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+				.andExpect(header().exists("X-Trace-Id"))
+				.andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.trace_id").exists());
 
 		verifyNoInteractions(internalWalletCreditService);
 	}
