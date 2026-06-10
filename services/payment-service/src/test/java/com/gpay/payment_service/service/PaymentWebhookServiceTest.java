@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gpay.payment_service.entity.ActivityLog;
 import com.gpay.payment_service.entity.TopupTransaction;
 import com.gpay.payment_service.exception.InvalidWebhookSignatureException;
+import com.gpay.payment_service.repository.ActivityLogRepository;
 import com.gpay.payment_service.repository.OutboxEventRepository;
 import com.gpay.payment_service.repository.TopupTransactionRepository;
 import java.time.Instant;
@@ -32,6 +34,9 @@ import org.springframework.test.context.TestPropertySource;
 		"payment.outbox.worker-initial-delay-ms=3600000"
 })
 class PaymentWebhookServiceTest {
+
+	@Autowired
+	private ActivityLogRepository activityLogRepository;
 
 	@Autowired
 	private GatewayWebhookSignatureService signatureService;
@@ -77,6 +82,18 @@ class PaymentWebhookServiceTest {
 		assertThat(outboxEvent.getStatus().name()).isEqualTo("PENDING");
 		assertThat(outboxEvent.getRetryCount()).isZero();
 		assertThat(outboxEvent.getNextRetryAt()).isNotNull();
+		ActivityLog activityLog = activityLogRepository
+				.findByTransactionIdOrderByCreatedAtAsc(transaction.getId())
+				.getFirst();
+		assertThat(activityLog.getUserId()).isEqualTo(transaction.getUserId());
+		assertThat(activityLog.getTransactionId()).isEqualTo(transaction.getId());
+		assertThat(activityLog.getServiceName()).isEqualTo("payment-service");
+		assertThat(activityLog.getAction()).isEqualTo("PAYMENT_GATEWAY_WEBHOOK");
+		assertThat(activityLog.getStatus()).isEqualTo("SUCCESS");
+		assertThat(activityLog.getTraceId()).isEqualTo("trace-webhook");
+		assertThat(activityLog.getDurationMs()).isNotNull();
+		assertThat(readPayload(activityLog.getRequestPayload()).get("status").asText()).isEqualTo("SUCCESS");
+		assertThat(readPayload(activityLog.getResponsePayload()).get("status").asText()).isEqualTo("SUCCESS");
 		var payload = readPayload(outboxEvent.getPayload());
 		assertThat(payload.get("wallet_id").asText()).isEqualTo(transaction.getWalletId().toString());
 		assertThat(payload.get("payment_transaction_id").asText()).isEqualTo(transaction.getId().toString());
@@ -95,6 +112,7 @@ class PaymentWebhookServiceTest {
 		paymentWebhookService.processGatewayWebhook(signature, timestamp, rawBody);
 
 		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore + 1);
+		assertThat(activityLogRepository.findByTransactionIdOrderByCreatedAtAsc(transaction.getId())).hasSize(1);
 	}
 
 	@Test
@@ -113,6 +131,13 @@ class PaymentWebhookServiceTest {
 		assertThat(updated.getGatewayReference()).isEqualTo("gw-failed");
 		assertThat(updated.getFailureReason()).isEqualTo("Gateway reported payment failure");
 		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore);
+		ActivityLog activityLog = activityLogRepository
+				.findByTransactionIdOrderByCreatedAtAsc(transaction.getId())
+				.getFirst();
+		assertThat(activityLog.getAction()).isEqualTo("PAYMENT_GATEWAY_WEBHOOK");
+		assertThat(activityLog.getStatus()).isEqualTo("FAILED");
+		assertThat(activityLog.getTraceId()).isEqualTo("trace-webhook");
+		assertThat(readPayload(activityLog.getResponsePayload()).get("status").asText()).isEqualTo("FAILED");
 	}
 
 	@Test
@@ -131,6 +156,7 @@ class PaymentWebhookServiceTest {
 		assertThat(unchanged.getStatus().name()).isEqualTo("PENDING");
 		assertThat(unchanged.getGatewayReference()).isNull();
 		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore);
+		assertThat(activityLogRepository.findByTransactionIdOrderByCreatedAtAsc(transaction.getId())).isEmpty();
 	}
 
 	private TopupTransaction pendingTransaction() {

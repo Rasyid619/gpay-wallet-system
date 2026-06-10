@@ -266,7 +266,7 @@ paths:
       tags:
         - Payment
       summary: Create a payment top-up transaction.
-      description: Creates or replays an authenticated payment top-up transaction using durable PostgreSQL idempotency, then calls Mock Gateway through WebClient. Gateway timeouts leave the transaction PENDING.
+      description: Creates or replays an authenticated payment top-up transaction using durable PostgreSQL idempotency, stores an internal payment activity log for new accepted requests, then calls Mock Gateway through WebClient. Gateway timeouts leave the transaction PENDING.
       servers:
         - url: http://localhost:8083
           description: Local Payment Service.
@@ -304,7 +304,7 @@ paths:
       tags:
         - Payment
       summary: Receive a signed mock gateway webhook.
-      description: Validates X-Gateway-Signature using HMAC_SHA256(secret, timestamp + "." + rawRequestBody) before updating the payment transaction to SUCCESS or FAILED. SUCCESS webhooks enqueue one pending wallet-credit outbox event.
+      description: Validates X-Gateway-Signature using HMAC_SHA256(secret, timestamp + "." + rawRequestBody) before updating the payment transaction to SUCCESS or FAILED. SUCCESS webhooks enqueue one pending wallet-credit outbox event. SUCCESS and FAILED status transitions store internal payment activity logs; activity logs are not exposed as API resources.
       servers:
         - url: http://localhost:8083
           description: Local Payment Service.

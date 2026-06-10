@@ -20,6 +20,7 @@ public class PaymentWebhookService {
 
 	private final GatewayWebhookSignatureService signatureService;
 	private final ObjectMapper objectMapper;
+	private final PaymentActivityLogService paymentActivityLogService;
 	private final PaymentOutboxService paymentOutboxService;
 	private final TopupTransactionRepository topupTransactionRepository;
 
@@ -28,6 +29,7 @@ public class PaymentWebhookService {
 			String signature,
 			String timestamp,
 			String rawRequestBody) {
+		long startedAtNanos = System.nanoTime();
 		signatureService.validate(timestamp, rawRequestBody, signature);
 		GatewayWebhookRequest request = readRequest(rawRequestBody);
 
@@ -38,6 +40,7 @@ public class PaymentWebhookService {
 		}
 
 		Instant now = Instant.now();
+		boolean shouldLogStatusTransition = transaction.getStatus() != request.status();
 		if (request.status() == PaymentStatus.SUCCESS) {
 			transaction.markSuccess(request.gatewayReference(), now);
 			paymentOutboxService.enqueueWalletCredit(transaction, now);
@@ -47,7 +50,20 @@ public class PaymentWebhookService {
 			throw new BadRequestException("Gateway webhook status must be SUCCESS or FAILED");
 		}
 
-		return new GatewayWebhookResponse(transaction.getId(), transaction.getStatus().name());
+		GatewayWebhookResponse response = new GatewayWebhookResponse(transaction.getId(), transaction.getStatus().name());
+		if (shouldLogStatusTransition) {
+			paymentActivityLogService.logGatewayWebhookProcessed(
+					transaction,
+					request,
+					response,
+					durationMs(startedAtNanos),
+					now);
+		}
+		return response;
+	}
+
+	private Long durationMs(long startedAtNanos) {
+		return (System.nanoTime() - startedAtNanos) / 1_000_000L;
 	}
 
 	private GatewayWebhookRequest readRequest(String rawRequestBody) {
