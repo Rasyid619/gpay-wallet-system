@@ -1,193 +1,195 @@
 # GPay Wallet System
 
-GPay Wallet System is a Java 21 Spring Boot monorepo for a GPay-style wallet
-application. The target architecture has separate services for auth, wallet,
-payment, and a mock payment gateway, with each service owning its own database.
+GPay Wallet System is a Java 21 Spring Boot monorepo for a wallet-style backend.
+It models user authentication, wallet balances, wallet-to-wallet transfer,
+top-up through a mock payment gateway, idempotency, payment rate limiting,
+gateway webhooks, audit/activity logs, and trace id propagation.
 
-This README reflects the current repository state.
+The repository is intentionally kept as a monorepo for local development and
+review. Service ownership is still separated: each service owns its own code,
+database, Flyway migrations, and API boundary.
 
-## Project Description
+## Services
 
-This project is a backend technical assessment that models a wallet system with
-microservice boundaries. The system is designed around secure authentication,
-safe wallet balance handling, durable idempotency, traceable activity logs, and
-payment top-up processing through a mock external gateway.
+| Service | Path | Database | Host URL | Responsibility |
+| --- | --- | --- | --- | --- |
+| Auth Service | `services/auth-service` | `auth_db` | `http://localhost:8081` | User registration, login, refresh tokens, current user |
+| Wallet Service | `services/wallet-service` | `wallet_db` | `http://localhost:8082` | Balances, mutations, transfers, internal wallet credit |
+| Payment Service | `services/payment-service` | `payment_db` | `http://localhost:8083` | Top-up lifecycle, gateway webhook handling, rate limiting, outbox retry |
+| Mock Gateway Service | `services/mock-gateway-service` | none | `http://localhost:8084` | Local gateway simulation for `SUCCESS`, `FAILED`, and `TIMEOUT` modes |
 
-The repository uses a monorepo layout to keep service code, database migrations,
-local infrastructure, documentation, and Postman requests easy to review. Each
-service is intended to own its own PostgreSQL database and communicate with
-other services only through HTTP APIs.
+Service-to-service communication uses HTTP APIs. Services must not query another
+service database directly.
 
-Current implementation includes the Auth, Wallet, Payment, and Mock Gateway
-services, plus Docker Compose wiring for local service-to-service workflows.
+## Implemented Endpoints
 
-## What Has Been Done
-
-### Project foundation
-
-- Monorepo structure is in place.
-- Product and engineering documentation exists in `docs/`.
-- Java conventions are documented in `CODEX.java.md`.
-- Docker Compose is available for local PostgreSQL and Redis.
-- PostgreSQL initialization creates the service databases:
-  - `auth_db`
-  - `wallet_db`
-  - `payment_db`
-- Postman collection exists at `postman/GPay.postman_collection.json`.
-
-### Auth Service
-
-Location:
+Auth Service:
 
 ```text
-services/auth-service
+POST /auth/register
+POST /auth/login
+POST /auth/refresh
+GET  /auth/me
 ```
 
-Implemented:
-
-- Spring Boot 3 service using Java 21 and Gradle Wrapper.
-- Auth endpoints:
-  - `POST /auth/register`
-  - `POST /auth/login`
-  - `POST /auth/refresh`
-  - `GET /auth/me`
-- PostgreSQL persistence with Spring Data JPA.
-- Flyway migration for:
-  - `users`
-  - `refresh_tokens`
-  - `user_role` enum
-- BCrypt password hashing.
-- JWT access token generation.
-- Refresh token generation, hashing, expiry, and revocation on refresh.
-- Spring Security JWT filter.
-- DTO-based API requests and responses.
-- Global exception handling for validation, conflict, not found, and unauthorized cases.
-- Unit tests for register, login, refresh token, and current-user behavior.
-
-Default port:
+Wallet Service:
 
 ```text
-8081
+GET  /wallets/balance
+GET  /wallets/mutations?page=0&size=20
+POST /wallets/transfer
+POST /internal/wallets/credit
 ```
 
-### Wallet Service
-
-Location:
+Payment Service:
 
 ```text
-services/wallet-service
+POST /payments/top-up
+POST /payments/webhook/gateway
 ```
 
-Implemented:
-
-- Spring Boot 3 service using Java 21 and Gradle Wrapper.
-- PostgreSQL persistence model entities for:
-  - wallets
-  - transfers
-  - ledger entries
-  - idempotency keys
-  - activity logs
-- Flyway migrations for wallet-owned tables and indexes.
-- Money is stored as whole IDR using `BIGINT` in the database and `Long` in Java.
-- Wallet schema includes non-negative balance checks, positive amount checks, transfer wallet distinctness checks, and source reference checks.
-- `updated_at` trigger for wallet rows.
-
-Default port:
+Mock Gateway Service:
 
 ```text
-8082
+POST /mock-gateway/top-up
 ```
 
-### Infrastructure
+The OpenAPI contract is in `openapi.yml`. The Postman collection is in
+`postman/GPay.postman_collection.json`.
 
-Implemented:
+## Important Rules
 
-- One PostgreSQL 16 Alpine container for local development.
-- One Redis 7 Alpine container for local development.
-- Init script for creating one database per service.
+- Money is represented as whole IDR.
+- Money uses `BIGINT` in PostgreSQL and `Long` in Java.
+- Public API JSON fields use `snake_case`.
+- Mutating money endpoints require `Idempotency-Key`.
+- Secrets must come from environment variables.
+- Flyway owns database schema migrations.
+- Hibernate runs with `ddl-auto: validate`.
 
-Docker services:
-
-```text
-postgres             -> localhost:5432
-redis                -> localhost:6379
-auth-service         -> localhost:8081
-wallet-service       -> localhost:8082
-payment-service      -> localhost:8083
-mock-gateway-service -> localhost:8084
-```
-
-## Repository Layout
-
-```text
-gpay-wallet-system/
-├── docker-compose.yml
-├── README.md
-├── CODEX.java.md
-├── docs/
-├── infrastructure/
-│   └── postgres/
-├── postman/
-└── services/
-    ├── auth-service/
-    ├── wallet-service/
-    ├── payment-service/
-    └── mock-gateway-service/
-```
-
-## Local Setup
-
-Prerequisites:
+## Prerequisites
 
 - Java 21
 - Docker and Docker Compose
+- Git
 
-Start local dependencies:
+No Maven setup is required. Each service uses its own Gradle Wrapper.
+
+## Local Startup With Docker Compose
+
+Copy the example environment file, then replace placeholder secrets before using
+the system beyond local testing:
 
 ```bash
-docker compose up -d postgres redis
+cp .env.example .env
 ```
 
-Start all implemented services and dependencies:
+Start every service and dependency:
 
 ```bash
 docker compose up --build
 ```
 
-Compose uses Docker network service names for internal calls:
+Run in the background:
+
+```bash
+docker compose up --build -d
+```
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
+PostgreSQL and Redis are exposed for local inspection:
+
+```text
+postgres -> localhost:5432
+redis    -> localhost:6379
+```
+
+Application services are exposed on:
+
+```text
+auth-service         -> http://localhost:8081
+wallet-service       -> http://localhost:8082
+payment-service      -> http://localhost:8083
+mock-gateway-service -> http://localhost:8084
+```
+
+Inside Docker Compose, services use Docker network names:
 
 ```text
 payment-service -> http://mock-gateway-service:8084/mock-gateway/top-up
 payment-service -> http://wallet-service:8082/internal/wallets/credit
 mock-gateway-service -> http://payment-service:8083/payments/webhook/gateway
 payment-service -> redis:6379
-auth-service -> postgres:5432/auth_db
-wallet-service -> postgres:5432/wallet_db
-payment-service -> postgres:5432/payment_db
 ```
 
-The current development defaults are defined in each service's `application.yml`.
-For production-like runs, provide secrets and database credentials through
-environment variables.
+## Database Ownership
 
-For local Compose runs, copy `.env.example` to `.env` and replace placeholder
-values. `.env` is ignored by Git and must not be committed.
-
-Important environment variables:
+One PostgreSQL container is used for local development. The init script creates
+one database per owning service:
 
 ```text
-AUTH_DB_URL
+auth_db    -> auth-service only
+wallet_db  -> wallet-service only
+payment_db -> payment-service only
+```
+
+Each service has its own Flyway migration folder under:
+
+```text
+services/<service-name>/src/main/resources/db/migration
+```
+
+## Environment Variables
+
+`.env.example` contains local placeholder values. `.env` is ignored by Git and
+must not be committed.
+
+Core infrastructure:
+
+```text
+POSTGRES_DB
+POSTGRES_USER
+POSTGRES_PASSWORD
+REDIS_HOST
+REDIS_PORT
+```
+
+Auth Service:
+
+```text
 AUTH_DB_USERNAME
 AUTH_DB_PASSWORD
 JWT_SECRET
-WALLET_DB_PASSWORD
-WALLET_DB_URL
+JWT_ACCESS_TOKEN_EXPIRATION_MINUTES
+JWT_REFRESH_TOKEN_EXPIRATION_DAYS
+```
+
+Wallet Service:
+
+```text
 WALLET_DB_USERNAME
+WALLET_DB_PASSWORD
+JWT_SECRET
 WALLET_INTERNAL_TOKEN
-PAYMENT_GATEWAY_TOP_UP_URL
+MAX_DAILY_TRANSFER_AMOUNT
+```
+
+Payment Service:
+
+```text
+PAYMENT_DB_USERNAME
+PAYMENT_DB_PASSWORD
+REDIS_HOST
+REDIS_PORT
+JWT_SECRET
+PAYMENT_TOPUP_RATE_LIMIT_PER_MINUTE
 PAYMENT_GATEWAY_TIMEOUT_MS
 PAYMENT_GATEWAY_WEBHOOK_SECRET
-PAYMENT_WALLET_CREDIT_URL
 PAYMENT_WALLET_INTERNAL_TOKEN
 PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS
 PAYMENT_OUTBOX_RETRY_DELAY_MS
@@ -195,49 +197,36 @@ PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS
 PAYMENT_OUTBOX_BATCH_SIZE
 PAYMENT_OUTBOX_WORKER_FIXED_DELAY_MS
 PAYMENT_OUTBOX_WORKER_INITIAL_DELAY_MS
-PAYMENT_WEBHOOK_URL
+```
+
+Mock Gateway Service:
+
+```text
 GATEWAY_WEBHOOK_SECRET
 MOCK_GATEWAY_TIMEOUT_DELAY_MS
 ```
 
-Compose also supports service-owned database credentials:
+Compose wires these service URLs directly:
 
 ```text
-AUTH_DB_USERNAME
-AUTH_DB_PASSWORD
-WALLET_DB_USERNAME
-WALLET_DB_PASSWORD
-PAYMENT_DB_USERNAME
-PAYMENT_DB_PASSWORD
+PAYMENT_GATEWAY_TOP_UP_URL=http://mock-gateway-service:8084/mock-gateway/top-up
+PAYMENT_WALLET_CREDIT_URL=http://wallet-service:8082/internal/wallets/credit
+PAYMENT_WEBHOOK_URL=http://payment-service:8083/payments/webhook/gateway
 ```
 
-`WALLET_INTERNAL_TOKEN` protects internal wallet-service endpoints such as
-`POST /internal/wallets/credit`. Set the same value in wallet-service runtime
-configuration and in trusted service-to-service clients. For local Postman
-testing, set the collection variable `internal_token` to the same value.
+Secret alignment required for local workflows:
 
-`GATEWAY_WEBHOOK_SECRET` signs mock-gateway callbacks to Payment Service using
-`HMAC_SHA256(secret, timestamp + "." + rawRequestBody)`. `PAYMENT_WEBHOOK_URL`
-must be configured before using Mock Gateway `SUCCESS` or `FAILED` mode.
-`MOCK_GATEWAY_TIMEOUT_DELAY_MS` controls the `TIMEOUT` mode delay.
-`PAYMENT_GATEWAY_TOP_UP_URL` should point to Mock Gateway
-`/mock-gateway/top-up`, and `PAYMENT_GATEWAY_TIMEOUT_MS` should be `5000` for
-the required 5-second payment gateway timeout.
-`PAYMENT_GATEWAY_WEBHOOK_SECRET` must match Mock Gateway's
-`GATEWAY_WEBHOOK_SECRET` so Payment Service can validate gateway callbacks.
-Successful gateway callbacks create one pending wallet-credit outbox event in
-`payment_db`; duplicate successful callbacks do not create duplicate credit work.
-`PAYMENT_WALLET_CREDIT_URL` should point to Wallet Service
-`/internal/wallets/credit`, and `PAYMENT_WALLET_INTERNAL_TOKEN` must match
-Wallet Service's `WALLET_INTERNAL_TOKEN`. The payment outbox worker sends this
-token with each wallet-credit delivery and uses durable payment outbox event IDs
-for wallet idempotency. `PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS` controls when a
-stuck `PROCESSING` outbox event is moved back to retryable `PENDING` state.
-In Docker Compose, these URLs are already wired to Docker network names, so the
-manual `localhost` values below are only needed when running services directly
-from the host.
+- `JWT_SECRET` must be the same for Auth, Wallet, and Payment services.
+- `WALLET_INTERNAL_TOKEN` must match `PAYMENT_WALLET_INTERNAL_TOKEN`.
+- `GATEWAY_WEBHOOK_SECRET` must match `PAYMENT_GATEWAY_WEBHOOK_SECRET`.
 
-## Running Services
+## Running A Single Service From The Host
+
+Start PostgreSQL and Redis first:
+
+```bash
+docker compose up -d postgres redis
+```
 
 Auth Service:
 
@@ -250,7 +239,7 @@ Wallet Service:
 
 ```bash
 cd services/wallet-service
-WALLET_INTERNAL_TOKEN=dev-internal-token-change-me ./gradlew bootRun
+WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token ./gradlew bootRun
 ```
 
 Payment Service:
@@ -259,9 +248,9 @@ Payment Service:
 cd services/payment-service
 PAYMENT_GATEWAY_TOP_UP_URL=http://localhost:8084/mock-gateway/top-up \
 PAYMENT_GATEWAY_TIMEOUT_MS=5000 \
-PAYMENT_GATEWAY_WEBHOOK_SECRET=dev-gateway-webhook-secret-change-me \
+PAYMENT_GATEWAY_WEBHOOK_SECRET=change-this-gateway-secret \
 PAYMENT_WALLET_CREDIT_URL=http://localhost:8082/internal/wallets/credit \
-PAYMENT_WALLET_INTERNAL_TOKEN=dev-internal-token-change-me \
+PAYMENT_WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token \
 PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS=5000 \
 PAYMENT_OUTBOX_RETRY_DELAY_MS=60000 \
 PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS=300000 \
@@ -276,34 +265,74 @@ Mock Gateway Service:
 ```bash
 cd services/mock-gateway-service
 PAYMENT_WEBHOOK_URL=http://localhost:8083/payments/webhook/gateway \
-GATEWAY_WEBHOOK_SECRET=dev-gateway-webhook-secret-change-me \
+GATEWAY_WEBHOOK_SECRET=change-this-gateway-secret \
 MOCK_GATEWAY_TIMEOUT_DELAY_MS=6000 \
 ./gradlew bootRun
 ```
 
 ## Running Tests
 
-Run tests from the changed service directory.
-
-Auth Service:
+Run tests from each service directory:
 
 ```bash
 cd services/auth-service
 ./gradlew test
 ```
 
-Wallet Service:
-
 ```bash
 cd services/wallet-service
 ./gradlew test
 ```
 
-For larger changes:
+```bash
+cd services/payment-service
+./gradlew test
+```
+
+```bash
+cd services/mock-gateway-service
+./gradlew test
+```
+
+For a larger verification pass within one service:
 
 ```bash
 ./gradlew clean test
 ```
+
+## Postman Usage
+
+Import:
+
+```text
+postman/GPay.postman_collection.json
+```
+
+Default collection variables target the Docker Compose host ports:
+
+```text
+auth_url=http://localhost:8081
+wallet_url=http://localhost:8082
+payment_url=http://localhost:8083
+gateway_url=http://localhost:8084
+```
+
+Suggested flow:
+
+1. Run `POST /auth/register`.
+2. Run `POST /auth/login`; the collection stores `access_token` and `refresh_token`.
+3. Use wallet and payment requests with `Authorization: Bearer {{access_token}}`.
+4. Set `receiver_wallet_id`, `credit_wallet_id`, `payment_transaction_id`, and `topup_wallet_id` as needed for manual workflows.
+5. Set `internal_token` to the same value as `WALLET_INTERNAL_TOKEN`.
+6. Set `gateway_webhook_secret` to the same value as `PAYMENT_GATEWAY_WEBHOOK_SECRET`.
+
+The collection automatically adds `X-Trace-Id` when a request does not define
+one. Empty idempotency key variables are initialized with generated local values;
+clear a key variable to generate a new one, or keep it to replay the same
+request.
+
+Webhook requests calculate `gateway_timestamp` and `gateway_signature` before
+sending. Do not store real secrets in the collection.
 
 ## Documentation
 
@@ -313,11 +342,9 @@ Project behavior and decisions are documented in:
 - `docs/architecture.md`
 - `docs/failure-scenarios.md`
 - `docs/trade-offs.md`
+- `docs/future-development.md`
 
-## API Notes
+API details are documented in:
 
-- Public API JSON fields should use `snake_case`.
-- Money amounts are whole IDR integers.
-- Secrets must come from environment variables.
-- Services must not query another service database directly.
-- Cross-service calls should use HTTP APIs through Spring WebClient.
+- `openapi.yml`
+- `postman/GPay.postman_collection.json`
