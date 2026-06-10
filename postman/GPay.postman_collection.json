@@ -2,7 +2,7 @@
   "info": {
     "name": "GPay Wallet System",
     "_postman_id": "gpay-wallet-system-v1",
-    "description": "Postman collection for GPay Wallet System microservices. The default variables target the Docker Compose host port mappings.\n\nServices:\n- Auth Service: http://localhost:8081\n- Wallet Service: http://localhost:8082\n- Payment Service: http://localhost:8083\n- Mock Gateway Service: http://localhost:8084\n\nUsage:\n1. Register a user via POST /auth/register\n2. Login via POST /auth/login — access_token is auto-saved to the `access_token` variable\n3. Use {{access_token}} in Authorization headers for protected endpoints\n4. The collection automatically adds X-Trace-Id when a request does not define one explicitly",
+    "description": "Postman collection for GPay Wallet System microservices. The default variables target the Docker Compose host port mappings.\n\nServices:\n- Auth Service: http://localhost:8081\n- Wallet Service: http://localhost:8082\n- Payment Service: http://localhost:8083\n- Mock Gateway Service: http://localhost:8084\n\nUsage:\n1. Register a user via POST /auth/register\n2. Login via POST /auth/login — access_token is auto-saved to the `access_token` variable\n3. Use {{access_token}} in Authorization headers for protected endpoints\n4. The collection automatically adds X-Trace-Id when a request does not define one explicitly\n5. Empty idempotency key variables are initialized with generated local values; clear a key variable to generate a new one, or keep it to replay a request\n6. Webhook requests calculate gateway_timestamp and gateway_signature from gateway_webhook_secret before sending; do not store real secrets in the collection",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -62,8 +62,63 @@
       "type": "string"
     },
     {
+      "key": "transfer_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transfer_invalid_token_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "credit_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "credit_invalid_token_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topup_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topup_invalid_token_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topup_timeout_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topup_rate_limit_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topup_redis_down_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "gateway_webhook_secret",
       "value": "dev-gateway-webhook-secret-change-me",
+      "type": "string"
+    },
+    {
+      "key": "gateway_timestamp",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "gateway_signature",
+      "value": "",
       "type": "string"
     }
   ],
@@ -75,7 +130,25 @@
         "exec": [
           "if (!pm.request.headers.has('X-Trace-Id')) {",
           "  pm.request.headers.add({ key: 'X-Trace-Id', value: pm.variables.replaceIn('trace-{{$guid}}') });",
-          "}"
+          "}",
+          "",
+          "const idempotencyDefaults = {",
+          "  transfer_idempotency_key: 'transfer',",
+          "  transfer_invalid_token_idempotency_key: 'transfer-invalid-token',",
+          "  credit_idempotency_key: 'credit',",
+          "  credit_invalid_token_idempotency_key: 'credit-invalid-token',",
+          "  topup_idempotency_key: 'topup',",
+          "  topup_invalid_token_idempotency_key: 'topup-invalid-token',",
+          "  topup_timeout_idempotency_key: 'topup-timeout',",
+          "  topup_rate_limit_idempotency_key: 'topup-rate-limit',",
+          "  topup_redis_down_idempotency_key: 'topup-redis-down'",
+          "};",
+          "",
+          "Object.entries(idempotencyDefaults).forEach(([key, prefix]) => {",
+          "  if (!pm.collectionVariables.get(key)) {",
+          "    pm.collectionVariables.set(key, pm.variables.replaceIn(`${prefix}-{{$guid}}`));",
+          "  }",
+          "});"
         ]
       }
     }
@@ -646,7 +719,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "transfer-{{$guid}}" },
+              { "key": "Idempotency-Key", "value": "{{transfer_idempotency_key}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -713,7 +786,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer invalid.token.here" },
-              { "key": "Idempotency-Key", "value": "transfer-invalid-token-{{$guid}}" },
+              { "key": "Idempotency-Key", "value": "{{transfer_invalid_token_idempotency_key}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -753,7 +826,7 @@
             "method": "POST",
             "header": [
               { "key": "X-Internal-Token", "value": "{{internal_token}}" },
-              { "key": "Idempotency-Key", "value": "credit-{{$guid}}" },
+              { "key": "Idempotency-Key", "value": "{{credit_idempotency_key}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -789,7 +862,7 @@
             "method": "POST",
             "header": [
               { "key": "X-Internal-Token", "value": "invalid-internal-token" },
-              { "key": "Idempotency-Key", "value": "credit-invalid-token-{{$guid}}" },
+              { "key": "Idempotency-Key", "value": "{{credit_invalid_token_idempotency_key}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -870,7 +943,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "topup-{{$guid}}" },
+              { "key": "Idempotency-Key", "value": "{{topup_idempotency_key}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -937,7 +1010,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer invalid.token.here" },
-              { "key": "Idempotency-Key", "value": "topup-invalid-token-{{$guid}}" },
+              { "key": "Idempotency-Key", "value": "{{topup_invalid_token_idempotency_key}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -974,7 +1047,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "topup-timeout-{{$guid}}" },
+              { "key": "Idempotency-Key", "value": "{{topup_timeout_idempotency_key}}" },
               { "key": "X-Trace-Id", "value": "trace-payment-timeout-{{$guid}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
@@ -1149,7 +1222,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "topup-rate-limit-{{$guid}}" },
+              { "key": "Idempotency-Key", "value": "{{topup_rate_limit_idempotency_key}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -1185,7 +1258,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "topup-redis-down-{{$guid}}" },
+              { "key": "Idempotency-Key", "value": "{{topup_redis_down_idempotency_key}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
