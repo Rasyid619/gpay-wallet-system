@@ -325,12 +325,22 @@ payment_url=http://localhost:8083
 gateway_url=http://localhost:8084
 ```
 
-Suggested flow:
+For the full manual verification path, use the collection folder named
+`E2E Flow` and follow `docs/postman-e2e-flow.md`. It covers:
+
+1. Register user A and user B.
+2. Login user A.
+3. Top-up user A with `SUCCESS`.
+4. Check balance, transfer to user B, and verify mutations.
+5. Retry the transfer with the same `Idempotency-Key`.
+6. Verify insufficient balance, failed top-up, timeout top-up, invalid webhook signature, and rate limiting.
+
+For ad hoc manual workflows:
 
 1. Run `POST /auth/register`.
 2. Run `POST /auth/login`; the collection stores `access_token` and `refresh_token`.
 3. Use wallet and payment requests with `Authorization: Bearer {{access_token}}`.
-4. Set `receiver_wallet_id`, `credit_wallet_id`, `payment_transaction_id`, and `topup_wallet_id` as needed for manual workflows.
+4. Set `receiver_wallet_id`, `credit_wallet_id`, `payment_transaction_id`, and `topup_wallet_id` as needed.
 5. Set `internal_token` to the same value as `WALLET_INTERNAL_TOKEN`.
 6. Set `gateway_webhook_secret` to the same value as `PAYMENT_GATEWAY_WEBHOOK_SECRET`.
 
@@ -351,6 +361,7 @@ Project behavior and decisions are documented in:
 - `docs/failure-scenarios.md`
 - `docs/trade-offs.md`
 - `docs/future-development.md`
+- `docs/postman-e2e-flow.md`
 
 API details are documented in:
 

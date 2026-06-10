@@ -125,6 +125,116 @@
       "key": "gateway_signature",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "user_a_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_b_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rate_limit_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_a_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_b_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_a_wallet_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_b_access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transfer_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rate_limit_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rate_limit_access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rate_limit_wallet_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_topup_success_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_transfer_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_insufficient_transfer_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_topup_failed_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_topup_timeout_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_rate_topup_1_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_rate_topup_2_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_rate_topup_3_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_rate_topup_4_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_rate_topup_5_idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_rate_topup_6_idempotency_key",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -146,7 +256,18 @@
           "  topup_invalid_token_idempotency_key: 'topup-invalid-token',",
           "  topup_timeout_idempotency_key: 'topup-timeout',",
           "  topup_rate_limit_idempotency_key: 'topup-rate-limit',",
-          "  topup_redis_down_idempotency_key: 'topup-redis-down'",
+          "  topup_redis_down_idempotency_key: 'topup-redis-down',",
+          "  e2e_topup_success_idempotency_key: 'e2e-topup-success',",
+          "  e2e_transfer_idempotency_key: 'e2e-transfer',",
+          "  e2e_insufficient_transfer_idempotency_key: 'e2e-insufficient-transfer',",
+          "  e2e_topup_failed_idempotency_key: 'e2e-topup-failed',",
+          "  e2e_topup_timeout_idempotency_key: 'e2e-topup-timeout',",
+          "  e2e_rate_topup_1_idempotency_key: 'e2e-rate-topup-1',",
+          "  e2e_rate_topup_2_idempotency_key: 'e2e-rate-topup-2',",
+          "  e2e_rate_topup_3_idempotency_key: 'e2e-rate-topup-3',",
+          "  e2e_rate_topup_4_idempotency_key: 'e2e-rate-topup-4',",
+          "  e2e_rate_topup_5_idempotency_key: 'e2e-rate-topup-5',",
+          "  e2e_rate_topup_6_idempotency_key: 'e2e-rate-topup-6'",
           "};",
           "",
           "Object.entries(idempotencyDefaults).forEach(([key, prefix]) => {",
@@ -159,6 +280,1180 @@
     }
   ],
   "item": [
+    {
+      "name": "E2E Flow",
+      "description": "Runnable local Docker Compose flow for registration, wallet auto-provisioning, top-up, transfer, idempotency, gateway failures, webhook validation, and payment rate limiting. Follow docs/postman-e2e-flow.md for the expected order and notes.",
+      "item": [
+        {
+          "name": "01 Register User A",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('user_a_email')) {",
+                  "  pm.collectionVariables.set('user_a_email', pm.variables.replaceIn('e2e-user-a-{{$guid}}@example.com'));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('user_a_id', body.user_id);",
+                  "pm.test('Stores user A id', () => pm.expect(body.user_id).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/register",
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Register user A. Auth Service should automatically provision a zero-balance wallet in Wallet Service.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_a_email}}\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "02 Register User B",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('user_b_email')) {",
+                  "  pm.collectionVariables.set('user_b_email', pm.variables.replaceIn('e2e-user-b-{{$guid}}@example.com'));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('user_b_id', body.user_id);",
+                  "pm.test('Stores user B id', () => pm.expect(body.user_id).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/register",
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Register user B.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_b_email}}\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "03 Login User A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', body.access_token);",
+                  "pm.collectionVariables.set('refresh_token', body.refresh_token);",
+                  "pm.test('Stores access token', () => pm.expect(body.access_token).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/login",
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login as user A and store the main access_token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_a_email}}\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "04 Login User B",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('user_b_access_token', body.access_token);",
+                  "pm.test('Stores user B token', () => pm.expect(body.access_token).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/login",
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login as user B so the collection can read user B balance.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_b_email}}\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "05 Get User A Balance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('user_a_wallet_id', body.wallet_id);",
+                  "pm.collectionVariables.set('topup_wallet_id', body.wallet_id);",
+                  "pm.test('User A starts at zero balance', () => pm.expect(body.balance).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/balance",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "balance"
+              ]
+            },
+            "description": "Confirm wallet auto-provisioning for user A and store wallet_id for top-up."
+          }
+        },
+        {
+          "name": "06 Get User B Balance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('receiver_wallet_id', body.wallet_id);",
+                  "pm.test('User B starts at zero balance', () => pm.expect(body.balance).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_b_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/balance",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "balance"
+              ]
+            },
+            "description": "Confirm wallet auto-provisioning for user B and store receiver_wallet_id."
+          }
+        },
+        {
+          "name": "07 Top-Up SUCCESS For User A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('payment_transaction_id', body.payment_transaction_id);",
+                  "pm.test('Top-up starts pending', () => pm.expect(body.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_topup_success_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
+            },
+            "description": "Create a successful top-up. The response is PENDING until the gateway webhook and outbox worker finish.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 100000,\n  \"gateway_mode\": \"SUCCESS\"\n}"
+            }
+          }
+        },
+        {
+          "name": "08 Check User A Balance After Top-Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('User A balance is credited', () => pm.expect(body.balance).to.eql(100000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/balance",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "balance"
+              ]
+            },
+            "description": "Run after a short wait. If this fails with balance 0, wait for the asynchronous outbox worker and retry this request."
+          }
+        },
+        {
+          "name": "09 Transfer From User A To User B",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('transfer_id', body.transfer_id);",
+                  "pm.test('Transfer amount is 25000', () => pm.expect(body.amount).to.eql(25000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_transfer_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/transfer",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "transfer"
+              ]
+            },
+            "description": "Transfer 25000 from user A to user B.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiver_wallet_id\": \"{{receiver_wallet_id}}\",\n  \"amount\": 25000\n}"
+            }
+          }
+        },
+        {
+          "name": "10 Check Both Balances",
+          "item": [
+            {
+              "name": "10A Check User A Balance After Transfer",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "pm.test('User A balance is 75000', () => pm.expect(body.balance).to.eql(75000));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{wallet_url}}/wallets/balance",
+                  "host": [
+                    "{{wallet_url}}"
+                  ],
+                  "path": [
+                    "wallets",
+                    "balance"
+                  ]
+                },
+                "description": "User A should have 75000 after the transfer."
+              }
+            },
+            {
+              "name": "10B Check User B Balance After Transfer",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "pm.test('User B balance is 25000', () => pm.expect(body.balance).to.eql(25000));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{user_b_access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{wallet_url}}/wallets/balance",
+                  "host": [
+                    "{{wallet_url}}"
+                  ],
+                  "path": [
+                    "wallets",
+                    "balance"
+                  ]
+                },
+                "description": "User B should have 25000 after receiving the transfer."
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Check User A Mutation History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const items = body.items || [];",
+                  "pm.test('Has at least two mutations', () => pm.expect(items.length).to.be.at.least(2));",
+                  "pm.test('Contains top-up credit', () => pm.expect(items.some(item => item.direction === 'CREDIT' && item.source === 'TOP_UP' && item.amount === 100000)).to.eql(true));",
+                  "pm.test('Contains transfer debit', () => pm.expect(items.some(item => item.direction === 'DEBIT' && item.source === 'TRANSFER' && item.amount === 25000)).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/mutations?page=0&size=20",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "mutations?page=0&size=20"
+              ]
+            },
+            "description": "Confirm mutation history includes top-up credit and transfer debit."
+          }
+        },
+        {
+          "name": "12 Retry Same Transfer Idempotency Key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Returns the original transfer id', () => pm.expect(body.transfer_id).to.eql(pm.collectionVariables.get('transfer_id')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_transfer_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/transfer",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "transfer"
+              ]
+            },
+            "description": "Replay the exact same transfer payload and key. It should return the stored response without moving money again.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiver_wallet_id\": \"{{receiver_wallet_id}}\",\n  \"amount\": 25000\n}"
+            }
+          }
+        },
+        {
+          "name": "13 Transfer With Insufficient Balance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('Error is INSUFFICIENT_BALANCE', () => pm.expect(body.error).to.eql('INSUFFICIENT_BALANCE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_insufficient_transfer_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/transfer",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "transfer"
+              ]
+            },
+            "description": "Attempt to transfer more than user A remaining balance. Amount 76000 stays below the daily limit and isolates insufficient balance.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiver_wallet_id\": \"{{receiver_wallet_id}}\",\n  \"amount\": 76000\n}"
+            }
+          }
+        },
+        {
+          "name": "14 Top-Up FAILED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Failed gateway top-up starts pending', () => pm.expect(body.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_topup_failed_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
+            },
+            "description": "Gateway sends a FAILED webhook after the initial PENDING response. Wallet balance should not increase.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 50000,\n  \"gateway_mode\": \"FAILED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "15 Top-Up TIMEOUT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Timeout top-up remains pending', () => pm.expect(body.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_topup_timeout_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
+            },
+            "description": "Gateway timeout returns PENDING and remains pending until a valid webhook arrives.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 50000,\n  \"gateway_mode\": \"TIMEOUT\"\n}"
+            }
+          }
+        },
+        {
+          "name": "16 Invalid Webhook Signature",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "const body = pm.response.json();",
+                  "pm.test('Error is INVALID_WEBHOOK_SIGNATURE', () => pm.expect(body.error).to.eql('INVALID_WEBHOOK_SIGNATURE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Gateway-Timestamp",
+                "value": "1700000000"
+              },
+              {
+                "key": "X-Gateway-Signature",
+                "value": "invalid-signature"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/webhook/gateway",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "webhook",
+                "gateway"
+              ]
+            },
+            "description": "Invalid webhook signatures must be rejected before payment state changes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_transaction_id\": \"11111111-1111-4111-8111-111111111111\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 50000,\n  \"status\": \"SUCCESS\",\n  \"gateway_reference\": \"invalid-signature-test\"\n}"
+            }
+          }
+        },
+        {
+          "name": "17 Register Rate Limit User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('rate_limit_email')) {",
+                  "  pm.collectionVariables.set('rate_limit_email', pm.variables.replaceIn('e2e-rate-limit-{{$guid}}@example.com'));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('rate_limit_user_id', body.user_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/register",
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Register a separate user so rate-limit attempts do not affect the main flow.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rate_limit_email}}\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "18 Login Rate Limit User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('rate_limit_access_token', body.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/auth/login",
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login as the rate-limit user.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rate_limit_email}}\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "19 Get Rate Limit User Balance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('rate_limit_wallet_id', body.wallet_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rate_limit_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/wallets/balance",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "balance"
+              ]
+            },
+            "description": "Store wallet id for the rate-limit user."
+          }
+        },
+        {
+          "name": "20 Top-Up Rate Limit Attempt 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Rate-limit setup top-up starts pending', () => pm.expect(body.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rate_limit_access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_rate_topup_1_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
+            },
+            "description": "Rate-limit attempt 1. Attempts 1-5 should succeed; attempt 6 should be rejected within one minute.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{rate_limit_wallet_id}}\",\n  \"amount\": 1000,\n  \"gateway_mode\": \"TIMEOUT\"\n}"
+            }
+          }
+        },
+        {
+          "name": "21 Top-Up Rate Limit Attempt 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Rate-limit setup top-up starts pending', () => pm.expect(body.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rate_limit_access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_rate_topup_2_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
+            },
+            "description": "Rate-limit attempt 2. Attempts 1-5 should succeed; attempt 6 should be rejected within one minute.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{rate_limit_wallet_id}}\",\n  \"amount\": 1000,\n  \"gateway_mode\": \"TIMEOUT\"\n}"
+            }
+          }
+        },
+        {
+          "name": "22 Top-Up Rate Limit Attempt 3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Rate-limit setup top-up starts pending', () => pm.expect(body.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rate_limit_access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_rate_topup_3_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
+            },
+            "description": "Rate-limit attempt 3. Attempts 1-5 should succeed; attempt 6 should be rejected within one minute.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{rate_limit_wallet_id}}\",\n  \"amount\": 1000,\n  \"gateway_mode\": \"TIMEOUT\"\n}"
+            }
+          }
+        },
+        {
+          "name": "23 Top-Up Rate Limit Attempt 4",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Rate-limit setup top-up starts pending', () => pm.expect(body.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rate_limit_access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_rate_topup_4_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
+            },
+            "description": "Rate-limit attempt 4. Attempts 1-5 should succeed; attempt 6 should be rejected within one minute.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{rate_limit_wallet_id}}\",\n  \"amount\": 1000,\n  \"gateway_mode\": \"TIMEOUT\"\n}"
+            }
+          }
+        },
+        {
+          "name": "24 Top-Up Rate Limit Attempt 5",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Rate-limit setup top-up starts pending', () => pm.expect(body.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rate_limit_access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_rate_topup_5_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
+            },
+            "description": "Rate-limit attempt 5. Attempts 1-5 should succeed; attempt 6 should be rejected within one minute.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{rate_limit_wallet_id}}\",\n  \"amount\": 1000,\n  \"gateway_mode\": \"TIMEOUT\"\n}"
+            }
+          }
+        },
+        {
+          "name": "25 Top-Up Rate Limit Attempt 6",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 429', () => pm.response.to.have.status(429));",
+                  "const body = pm.response.json();",
+                  "pm.test('Error is RATE_LIMIT_EXCEEDED', () => pm.expect(body.error).to.eql('RATE_LIMIT_EXCEEDED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{rate_limit_access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{e2e_rate_topup_6_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/top-up",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
+            },
+            "description": "Rate-limit attempt 6. Attempts 1-5 should succeed; attempt 6 should be rejected within one minute.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{rate_limit_wallet_id}}\",\n  \"amount\": 1000,\n  \"gateway_mode\": \"TIMEOUT\"\n}"
+            }
+          }
+        }
+      ]
+    },
     {
       "name": "Auth",
       "item": [
@@ -184,13 +1479,24 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Trace-Id", "value": "trace-mock-success-{{$guid}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Trace-Id",
+                "value": "trace-mock-success-{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/register",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -219,12 +1525,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/register",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -253,12 +1567,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/register",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -287,12 +1609,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/register",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -321,12 +1651,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/login",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -340,12 +1678,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/login",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -380,12 +1726,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/refresh",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "refresh"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -414,12 +1768,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/refresh",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "refresh"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -456,12 +1818,20 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/me",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "description": "Returns the authenticated user's profile (user_id, email, role, created_at). Requires a valid Bearer access token."
           }
@@ -484,8 +1854,13 @@
             "header": [],
             "url": {
               "raw": "{{auth_url}}/auth/me",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "description": "Expected: 401 Unauthorized when Authorization header is missing."
           }
@@ -506,12 +1881,20 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer invalid.token.here" }
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid.token.here"
+              }
             ],
             "url": {
               "raw": "{{auth_url}}/auth/me",
-              "host": ["{{auth_url}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{auth_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "description": "Expected: 401 Unauthorized when token is invalid or expired."
           }
@@ -542,12 +1925,20 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/wallets/balance",
-              "host": ["{{wallet_url}}"],
-              "path": ["wallets", "balance"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "balance"
+              ]
             },
             "description": "Returns the authenticated user's wallet balance as whole IDR. Requires a valid Bearer access token."
           }
@@ -570,8 +1961,13 @@
             "header": [],
             "url": {
               "raw": "{{wallet_url}}/wallets/balance",
-              "host": ["{{wallet_url}}"],
-              "path": ["wallets", "balance"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "balance"
+              ]
             },
             "description": "Expected: 401 Unauthorized when Authorization header is missing."
           }
@@ -592,12 +1988,20 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer invalid.token.here" }
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid.token.here"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/wallets/balance",
-              "host": ["{{wallet_url}}"],
-              "path": ["wallets", "balance"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "balance"
+              ]
             },
             "description": "Expected: 401 Unauthorized when token is invalid or expired."
           }
@@ -626,15 +2030,29 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/wallets/mutations?page=0&size=20",
-              "host": ["{{wallet_url}}"],
-              "path": ["wallets", "mutations"],
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "mutations"
+              ],
               "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" }
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             },
             "description": "Returns paginated wallet mutation history for the authenticated user's wallet only, newest first."
@@ -658,11 +2076,22 @@
             "header": [],
             "url": {
               "raw": "{{wallet_url}}/wallets/mutations?page=0&size=20",
-              "host": ["{{wallet_url}}"],
-              "path": ["wallets", "mutations"],
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "mutations"
+              ],
               "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" }
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             },
             "description": "Expected: 401 Unauthorized when Authorization header is missing."
@@ -684,15 +2113,29 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer invalid.token.here" }
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid.token.here"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/wallets/mutations?page=0&size=20",
-              "host": ["{{wallet_url}}"],
-              "path": ["wallets", "mutations"],
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "mutations"
+              ],
               "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" }
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             },
             "description": "Expected: 401 Unauthorized when token is invalid or expired."
@@ -723,14 +2166,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "{{transfer_idempotency_key}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{transfer_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/wallets/transfer",
-              "host": ["{{wallet_url}}"],
-              "path": ["wallets", "transfer"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "transfer"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -759,13 +2216,24 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/wallets/transfer",
-              "host": ["{{wallet_url}}"],
-              "path": ["wallets", "transfer"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "transfer"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -790,14 +2258,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer invalid.token.here" },
-              { "key": "Idempotency-Key", "value": "{{transfer_invalid_token_idempotency_key}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid.token.here"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{transfer_invalid_token_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/wallets/transfer",
-              "host": ["{{wallet_url}}"],
-              "path": ["wallets", "transfer"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "wallets",
+                "transfer"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -829,13 +2311,25 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Internal-Token", "value": "{{internal_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Internal-Token",
+                "value": "{{internal_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/internal/wallets/provision",
-              "host": ["{{wallet_url}}"],
-              "path": ["internal", "wallets", "provision"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "internal",
+                "wallets",
+                "provision"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -868,14 +2362,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Internal-Token", "value": "{{internal_token}}" },
-              { "key": "Idempotency-Key", "value": "{{credit_idempotency_key}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Internal-Token",
+                "value": "{{internal_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{credit_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/internal/wallets/credit",
-              "host": ["{{wallet_url}}"],
-              "path": ["internal", "wallets", "credit"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "internal",
+                "wallets",
+                "credit"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -904,14 +2413,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Internal-Token", "value": "invalid-internal-token" },
-              { "key": "Idempotency-Key", "value": "{{credit_invalid_token_idempotency_key}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Internal-Token",
+                "value": "invalid-internal-token"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{credit_invalid_token_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/internal/wallets/credit",
-              "host": ["{{wallet_url}}"],
-              "path": ["internal", "wallets", "credit"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "internal",
+                "wallets",
+                "credit"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -940,13 +2464,25 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Internal-Token", "value": "{{internal_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Internal-Token",
+                "value": "{{internal_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{wallet_url}}/internal/wallets/credit",
-              "host": ["{{wallet_url}}"],
-              "path": ["internal", "wallets", "credit"]
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "internal",
+                "wallets",
+                "credit"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -985,14 +2521,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "{{topup_idempotency_key}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{topup_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{payment_url}}/payments/top-up",
-              "host": ["{{payment_url}}"],
-              "path": ["payments", "top-up"]
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1021,13 +2571,24 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{payment_url}}/payments/top-up",
-              "host": ["{{payment_url}}"],
-              "path": ["payments", "top-up"]
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1052,14 +2613,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer invalid.token.here" },
-              { "key": "Idempotency-Key", "value": "{{topup_invalid_token_idempotency_key}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid.token.here"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{topup_invalid_token_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{payment_url}}/payments/top-up",
-              "host": ["{{payment_url}}"],
-              "path": ["payments", "top-up"]
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1089,15 +2664,32 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "{{topup_timeout_idempotency_key}}" },
-              { "key": "X-Trace-Id", "value": "trace-payment-timeout-{{$guid}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{topup_timeout_idempotency_key}}"
+              },
+              {
+                "key": "X-Trace-Id",
+                "value": "trace-payment-timeout-{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{payment_url}}/payments/top-up",
-              "host": ["{{payment_url}}"],
-              "path": ["payments", "top-up"]
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1141,14 +2733,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Gateway-Signature", "value": "{{gateway_signature}}" },
-              { "key": "X-Gateway-Timestamp", "value": "{{gateway_timestamp}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Gateway-Signature",
+                "value": "{{gateway_signature}}"
+              },
+              {
+                "key": "X-Gateway-Timestamp",
+                "value": "{{gateway_timestamp}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{payment_url}}/payments/webhook/gateway",
-              "host": ["{{payment_url}}"],
-              "path": ["payments", "webhook", "gateway"]
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "webhook",
+                "gateway"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1192,14 +2799,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Gateway-Signature", "value": "{{gateway_signature}}" },
-              { "key": "X-Gateway-Timestamp", "value": "{{gateway_timestamp}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Gateway-Signature",
+                "value": "{{gateway_signature}}"
+              },
+              {
+                "key": "X-Gateway-Timestamp",
+                "value": "{{gateway_timestamp}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{payment_url}}/payments/webhook/gateway",
-              "host": ["{{payment_url}}"],
-              "path": ["payments", "webhook", "gateway"]
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "webhook",
+                "gateway"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1228,14 +2850,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Gateway-Signature", "value": "invalid-signature" },
-              { "key": "X-Gateway-Timestamp", "value": "2026-06-09T10:00:00Z" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Gateway-Signature",
+                "value": "invalid-signature"
+              },
+              {
+                "key": "X-Gateway-Timestamp",
+                "value": "2026-06-09T10:00:00Z"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{payment_url}}/payments/webhook/gateway",
-              "host": ["{{payment_url}}"],
-              "path": ["payments", "webhook", "gateway"]
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "webhook",
+                "gateway"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1264,14 +2901,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "{{topup_rate_limit_idempotency_key}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{topup_rate_limit_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{payment_url}}/payments/top-up",
-              "host": ["{{payment_url}}"],
-              "path": ["payments", "top-up"]
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1300,14 +2951,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Idempotency-Key", "value": "{{topup_redis_down_idempotency_key}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{topup_redis_down_idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{payment_url}}/payments/top-up",
-              "host": ["{{payment_url}}"],
-              "path": ["payments", "top-up"]
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1346,12 +3011,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{gateway_url}}/mock-gateway/top-up",
-              "host": ["{{gateway_url}}"],
-              "path": ["mock-gateway", "top-up"]
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "mock-gateway",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1382,13 +3055,24 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Trace-Id", "value": "trace-mock-failed-{{$guid}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Trace-Id",
+                "value": "trace-mock-failed-{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{gateway_url}}/mock-gateway/top-up",
-              "host": ["{{gateway_url}}"],
-              "path": ["mock-gateway", "top-up"]
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "mock-gateway",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1419,13 +3103,24 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Trace-Id", "value": "trace-mock-timeout-{{$guid}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "X-Trace-Id",
+                "value": "trace-mock-timeout-{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{gateway_url}}/mock-gateway/top-up",
-              "host": ["{{gateway_url}}"],
-              "path": ["mock-gateway", "top-up"]
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "mock-gateway",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -1454,12 +3149,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{gateway_url}}/mock-gateway/top-up",
-              "host": ["{{gateway_url}}"],
-              "path": ["mock-gateway", "top-up"]
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "mock-gateway",
+                "top-up"
+              ]
             },
             "body": {
               "mode": "raw",
