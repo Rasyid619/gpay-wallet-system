@@ -1,5 +1,6 @@
 package com.gpay.auth_service.service;
 
+import com.gpay.auth_service.config.TraceIdContext;
 import com.gpay.auth_service.dto.LoginRequest;
 import com.gpay.auth_service.dto.LoginResponse;
 import com.gpay.auth_service.dto.RefreshRequest;
@@ -38,6 +39,7 @@ public class AuthService {
 	private final RefreshTokenRepository refreshTokenRepository;
 	private final JwtService jwtService;
 	private final PasswordEncoder passwordEncoder;
+	private final WalletProvisioningClient walletProvisioningClient;
 	@Value("${jwt.refresh-token-expiration-days}")
 	private int refreshTokenExpirationDays;
 
@@ -72,6 +74,7 @@ public class AuthService {
 		String passwordHash = passwordEncoder.encode(request.password());
 		User user = User.create(UUID.randomUUID(), request.email(), passwordHash, UserRole.USER, now, now);
 		userRepository.save(user);
+		walletProvisioningClient.provisionWallet(user.getId(), TraceIdContext.getTraceId());
 
 		return new RegisterResponse(user.getId(), user.getEmail(), user.getCreatedAt());
 	}

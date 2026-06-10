@@ -56,11 +56,19 @@ class AuthServiceTest {
 	@Mock
 	private PasswordEncoder passwordEncoder;
 
+	@Mock
+	private WalletProvisioningClient walletProvisioningClient;
+
 	private AuthService authService;
 
 	@BeforeEach
 	void setUp() {
-		authService = new AuthService(userRepository, refreshTokenRepository, jwtService, passwordEncoder);
+		authService = new AuthService(
+				userRepository,
+				refreshTokenRepository,
+				jwtService,
+				passwordEncoder,
+				walletProvisioningClient);
 		ReflectionTestUtils.setField(authService, "refreshTokenExpirationDays", 7);
 	}
 
@@ -79,6 +87,7 @@ class AuthServiceTest {
 			assertThat(response.userId()).isNotNull();
 			assertThat(response.createdAt()).isNotNull();
 			verify(userRepository).save(any(User.class));
+			verify(walletProvisioningClient).provisionWallet(response.userId(), null);
 		}
 
 		@Test
@@ -92,6 +101,7 @@ class AuthServiceTest {
 					.hasMessageContaining("already registered");
 
 			verify(userRepository, never()).save(any());
+			verify(walletProvisioningClient, never()).provisionWallet(any(), any());
 		}
 
 		@Test

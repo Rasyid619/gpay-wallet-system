@@ -38,6 +38,7 @@ Wallet Service:
 GET  /wallets/balance
 GET  /wallets/mutations?page=0&size=20
 POST /wallets/transfer
+POST /internal/wallets/provision
 POST /internal/wallets/credit
 ```
 
@@ -122,6 +123,7 @@ Inside Docker Compose, services use Docker network names:
 
 ```text
 payment-service -> http://mock-gateway-service:8084/mock-gateway/top-up
+auth-service -> http://wallet-service:8082/internal/wallets/provision
 payment-service -> http://wallet-service:8082/internal/wallets/credit
 mock-gateway-service -> http://payment-service:8083/payments/webhook/gateway
 payment-service -> redis:6379
@@ -167,6 +169,8 @@ AUTH_DB_PASSWORD
 JWT_SECRET
 JWT_ACCESS_TOKEN_EXPIRATION_MINUTES
 JWT_REFRESH_TOKEN_EXPIRATION_DAYS
+AUTH_WALLET_INTERNAL_TOKEN
+AUTH_WALLET_PROVISION_TIMEOUT_MS
 ```
 
 Wallet Service:
@@ -210,6 +214,7 @@ Compose wires these service URLs directly:
 
 ```text
 PAYMENT_GATEWAY_TOP_UP_URL=http://mock-gateway-service:8084/mock-gateway/top-up
+AUTH_WALLET_PROVISION_URL=http://wallet-service:8082/internal/wallets/provision
 PAYMENT_WALLET_CREDIT_URL=http://wallet-service:8082/internal/wallets/credit
 PAYMENT_WEBHOOK_URL=http://payment-service:8083/payments/webhook/gateway
 ```
@@ -217,7 +222,7 @@ PAYMENT_WEBHOOK_URL=http://payment-service:8083/payments/webhook/gateway
 Secret alignment required for local workflows:
 
 - `JWT_SECRET` must be the same for Auth, Wallet, and Payment services.
-- `WALLET_INTERNAL_TOKEN` must match `PAYMENT_WALLET_INTERNAL_TOKEN`.
+- `WALLET_INTERNAL_TOKEN` must match `AUTH_WALLET_INTERNAL_TOKEN` and `PAYMENT_WALLET_INTERNAL_TOKEN`.
 - `GATEWAY_WEBHOOK_SECRET` must match `PAYMENT_GATEWAY_WEBHOOK_SECRET`.
 
 ## Running A Single Service From The Host
@@ -232,6 +237,9 @@ Auth Service:
 
 ```bash
 cd services/auth-service
+AUTH_WALLET_PROVISION_URL=http://localhost:8082/internal/wallets/provision \
+AUTH_WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token \
+AUTH_WALLET_PROVISION_TIMEOUT_MS=5000 \
 ./gradlew bootRun
 ```
 

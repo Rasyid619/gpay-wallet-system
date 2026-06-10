@@ -47,6 +47,11 @@
       "type": "string"
     },
     {
+      "key": "provision_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "credit_wallet_id",
       "value": "",
       "type": "string"
@@ -799,6 +804,44 @@
               "raw": "{\n  \"receiver_wallet_id\": \"{{receiver_wallet_id}}\",\n  \"amount\": 25000\n}"
             },
             "description": "Expected: 401 Unauthorized when token is invalid or expired."
+          }
+        },
+        {
+          "name": "Internal Provision Wallet",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has zero-balance wallet details', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.wallet_id).to.be.a('string');",
+                  "  pm.expect(body.user_id).to.eql(pm.collectionVariables.get('provision_user_id'));",
+                  "  pm.expect(body.balance).to.eql(0);",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Internal-Token", "value": "{{internal_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/internal/wallets/provision",
+              "host": ["{{wallet_url}}"],
+              "path": ["internal", "wallets", "provision"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{provision_user_id}}\"\n}"
+            },
+            "description": "Internal auth-service wallet provisioning endpoint. Registration calls this automatically. Set internal_token from WALLET_INTERNAL_TOKEN and provision_user_id to an auth-service user_id before running manually."
           }
         },
         {

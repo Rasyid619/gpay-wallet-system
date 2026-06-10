@@ -36,6 +36,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      wallet-service:
+        condition: service_started
     environment:
       AUTH_DB_URL: jdbc:postgresql://postgres:5432/auth_db
       AUTH_DB_USERNAME: ${AUTH_DB_USERNAME:-gpay}
@@ -43,6 +45,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-minimum-32-characters-long}
       JWT_ACCESS_TOKEN_EXPIRATION_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-15}
       JWT_REFRESH_TOKEN_EXPIRATION_DAYS: ${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-7}
+      AUTH_WALLET_PROVISION_URL: http://wallet-service:8082/internal/wallets/provision
+      AUTH_WALLET_INTERNAL_TOKEN: ${AUTH_WALLET_INTERNAL_TOKEN:-change-this-wallet-internal-token}
+      AUTH_WALLET_PROVISION_TIMEOUT_MS: ${AUTH_WALLET_PROVISION_TIMEOUT_MS:-5000}
     ports:
       - "8081:8081"
 
