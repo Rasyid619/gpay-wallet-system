@@ -18,9 +18,8 @@ local infrastructure, documentation, and Postman requests easy to review. Each
 service is intended to own its own PostgreSQL database and communicate with
 other services only through HTTP APIs.
 
-Current implementation is focused on the foundation, Auth Service, and Wallet
-Service persistence model. Payment and mock gateway workflows are documented as
-target scope but have not been implemented yet.
+Current implementation includes the Auth, Wallet, Payment, and Mock Gateway
+services, plus Docker Compose wiring for local service-to-service workflows.
 
 ## What Has Been Done
 
@@ -110,23 +109,13 @@ Implemented:
 Docker services:
 
 ```text
-postgres -> localhost:5432
-redis    -> localhost:6379
+postgres             -> localhost:5432
+redis                -> localhost:6379
+auth-service         -> localhost:8081
+wallet-service       -> localhost:8082
+payment-service      -> localhost:8083
+mock-gateway-service -> localhost:8084
 ```
-
-## Not Yet Implemented
-
-The following items are part of the target scope but are not fully implemented in the current codebase:
-
-- Wallet controllers, services, repositories, JWT validation, transfer workflow, mutation history, and internal credit endpoint.
-- Payment Service implementation.
-- Mock Gateway Service implementation.
-- Payment top-up rate limiting with Redis.
-- Gateway webhook HMAC validation.
-- Payment outbox and retry worker.
-- Trace ID filter and WebClient trace propagation.
-- Wallet transfer concurrency tests.
-- Payment webhook, rate limit, and outbox tests.
 
 ## Repository Layout
 
@@ -141,14 +130,9 @@ gpay-wallet-system/
 ├── postman/
 └── services/
     ├── auth-service/
-    └── wallet-service/
-```
-
-Target services that still need to be added:
-
-```text
-services/payment-service
-services/mock-gateway-service
+    ├── wallet-service/
+    ├── payment-service/
+    └── mock-gateway-service/
 ```
 
 ## Local Setup
@@ -164,9 +148,30 @@ Start local dependencies:
 docker compose up -d postgres redis
 ```
 
+Start all implemented services and dependencies:
+
+```bash
+docker compose up --build
+```
+
+Compose uses Docker network service names for internal calls:
+
+```text
+payment-service -> http://mock-gateway-service:8084/mock-gateway/top-up
+payment-service -> http://wallet-service:8082/internal/wallets/credit
+mock-gateway-service -> http://payment-service:8083/payments/webhook/gateway
+payment-service -> redis:6379
+auth-service -> postgres:5432/auth_db
+wallet-service -> postgres:5432/wallet_db
+payment-service -> postgres:5432/payment_db
+```
+
 The current development defaults are defined in each service's `application.yml`.
 For production-like runs, provide secrets and database credentials through
 environment variables.
+
+For local Compose runs, copy `.env.example` to `.env` and replace placeholder
+values. `.env` is ignored by Git and must not be committed.
 
 Important environment variables:
 
@@ -195,6 +200,17 @@ GATEWAY_WEBHOOK_SECRET
 MOCK_GATEWAY_TIMEOUT_DELAY_MS
 ```
 
+Compose also supports service-owned database credentials:
+
+```text
+AUTH_DB_USERNAME
+AUTH_DB_PASSWORD
+WALLET_DB_USERNAME
+WALLET_DB_PASSWORD
+PAYMENT_DB_USERNAME
+PAYMENT_DB_PASSWORD
+```
+
 `WALLET_INTERNAL_TOKEN` protects internal wallet-service endpoints such as
 `POST /internal/wallets/credit`. Set the same value in wallet-service runtime
 configuration and in trusted service-to-service clients. For local Postman
@@ -217,6 +233,9 @@ Wallet Service's `WALLET_INTERNAL_TOKEN`. The payment outbox worker sends this
 token with each wallet-credit delivery and uses durable payment outbox event IDs
 for wallet idempotency. `PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS` controls when a
 stuck `PROCESSING` outbox event is moved back to retryable `PENDING` state.
+In Docker Compose, these URLs are already wired to Docker network names, so the
+manual `localhost` values below are only needed when running services directly
+from the host.
 
 ## Running Services
 

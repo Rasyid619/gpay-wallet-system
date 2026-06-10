@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: GPay Wallet System API
   version: 0.1.0
-  description: Implemented API contract for the Auth Service, Wallet Service, Payment Service, and Mock Gateway Service.
+  description: Implemented API contract for the Auth Service, Wallet Service, Payment Service, and Mock Gateway Service. Local server URLs match the Docker Compose host port mappings.
 
 servers:
   - url: http://localhost:8081
