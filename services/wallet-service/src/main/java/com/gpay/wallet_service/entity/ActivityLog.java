@@ -39,6 +39,9 @@ public class ActivityLog {
 	@Column(name = "trace_id", columnDefinition = "text")
 	private String traceId;
 
+	@Column(name = "service_name", nullable = false, columnDefinition = "text")
+	private String serviceName;
+
 	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(columnDefinition = "jsonb")
 	private String metadata;
@@ -52,14 +55,15 @@ public class ActivityLog {
 	/**
 	 * Creates a user-facing activity log record.
 	 *
-	 * @param id        unique log identifier
-	 * @param userId    user associated with the activity when available
-	 * @param wallet    wallet associated with the activity when available
-	 * @param action    activity action name
-	 * @param status    activity result status
-	 * @param traceId   propagated trace identifier
-	 * @param metadata  optional JSON metadata
-	 * @param createdAt creation timestamp
+	 * @param id          unique log identifier
+	 * @param userId      user associated with the activity when available
+	 * @param wallet      wallet associated with the activity when available
+	 * @param action      activity action name
+	 * @param status      activity result status
+	 * @param traceId     propagated trace identifier
+	 * @param serviceName service that created the log
+	 * @param metadata    optional JSON metadata
+	 * @param createdAt   creation timestamp
 	 */
 	public static ActivityLog create(
 			UUID id,
@@ -68,6 +72,7 @@ public class ActivityLog {
 			String action,
 			String status,
 			String traceId,
+			String serviceName,
 			String metadata,
 			Instant createdAt) {
 		ActivityLog log = new ActivityLog();
@@ -77,6 +82,7 @@ public class ActivityLog {
 		log.action = action;
 		log.status = status;
 		log.traceId = traceId;
+		log.serviceName = serviceName;
 		log.metadata = metadata;
 		log.createdAt = createdAt;
 		return log;

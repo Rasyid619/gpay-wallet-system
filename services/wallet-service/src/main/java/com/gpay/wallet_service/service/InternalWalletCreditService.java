@@ -40,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class InternalWalletCreditService {
 
 	private static final String ACTION_CREDIT = "INTERNAL_WALLET_CREDIT";
+	private static final String SERVICE_NAME = "wallet-service";
 
 	private final ActivityLogRepository activityLogRepository;
 	private final IdempotencyKeyRepository idempotencyKeyRepository;
@@ -160,6 +161,7 @@ public class InternalWalletCreditService {
 				ACTION_CREDIT,
 				"SUCCESS",
 				traceId,
+				SERVICE_NAME,
 				null,
 				now));
 

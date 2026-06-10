@@ -882,7 +882,7 @@
               "mode": "raw",
               "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"gateway_mode\": \"SUCCESS\"\n}"
             },
-            "description": "Creates a pending payment top-up transaction and calls Mock Gateway with SUCCESS mode. Requires a valid Bearer access token and Idempotency-Key."
+            "description": "Creates a pending payment top-up transaction, stores an internal payment activity log, and calls Mock Gateway with SUCCESS mode. Requires a valid Bearer access token and Idempotency-Key."
           }
         },
         {
@@ -987,7 +987,7 @@
               "mode": "raw",
               "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"gateway_mode\": \"TIMEOUT\"\n}"
             },
-            "description": "Calls Payment top-up with gateway_mode TIMEOUT. Payment Service should time out the Mock Gateway call and keep the transaction PENDING."
+            "description": "Calls Payment top-up with gateway_mode TIMEOUT. Payment Service should time out the Mock Gateway call, keep the transaction PENDING, and keep the internal payment activity log at PENDING."
           }
         },
         {
@@ -1038,7 +1038,58 @@
               "mode": "raw",
               "raw": "{\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"status\": \"SUCCESS\",\n  \"gateway_reference\": \"gw-postman-success\"\n}"
             },
-            "description": "Sends a valid signed SUCCESS webhook to Payment Service and creates one pending wallet-credit outbox event. Set gateway_webhook_secret to match PAYMENT_GATEWAY_WEBHOOK_SECRET."
+            "description": "Sends a valid signed SUCCESS webhook to Payment Service, stores an internal SUCCESS payment activity log, and creates one pending wallet-credit outbox event. Set gateway_webhook_secret to match PAYMENT_GATEWAY_WEBHOOK_SECRET."
+          }
+        },
+        {
+          "name": "Gateway Webhook FAILED",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const timestamp = new Date().toISOString();",
+                  "const rawBody = pm.variables.replaceIn(pm.request.body.raw);",
+                  "const secret = pm.collectionVariables.get('gateway_webhook_secret');",
+                  "const signature = CryptoJS.HmacSHA256(`${timestamp}.${rawBody}`, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('gateway_timestamp', timestamp);",
+                  "pm.collectionVariables.set('gateway_signature', signature);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Webhook updated payment status to FAILED', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.payment_transaction_id).to.eql(pm.collectionVariables.get('payment_transaction_id'));",
+                  "  pm.expect(body.status).to.eql('FAILED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Gateway-Signature", "value": "{{gateway_signature}}" },
+              { "key": "X-Gateway-Timestamp", "value": "{{gateway_timestamp}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/webhook/gateway",
+              "host": ["{{payment_url}}"],
+              "path": ["payments", "webhook", "gateway"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"status\": \"FAILED\",\n  \"gateway_reference\": \"gw-postman-failed\"\n}"
+            },
+            "description": "Sends a valid signed FAILED webhook to Payment Service and stores an internal FAILED payment activity log without creating wallet-credit outbox work. Set gateway_webhook_secret to match PAYMENT_GATEWAY_WEBHOOK_SECRET."
           }
         },
         {

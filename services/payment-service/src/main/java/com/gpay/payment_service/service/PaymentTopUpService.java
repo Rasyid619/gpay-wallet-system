@@ -33,6 +33,7 @@ public class PaymentTopUpService {
 
 	private final IdempotencyKeyRepository idempotencyKeyRepository;
 	private final ObjectMapper objectMapper;
+	private final PaymentActivityLogService paymentActivityLogService;
 	private final PaymentGatewayClient paymentGatewayClient;
 	private final PaymentRateLimiter paymentRateLimiter;
 	private final TopupTransactionRepository topupTransactionRepository;
@@ -83,6 +84,7 @@ public class PaymentTopUpService {
 			String requestHash,
 			TopUpRequest request,
 			String traceId) {
+		long startedAtNanos = System.nanoTime();
 		Instant now = Instant.now();
 		TopupTransaction transaction = TopupTransaction.createPending(
 				UUID.randomUUID(),
@@ -101,8 +103,18 @@ public class PaymentTopUpService {
 				transaction.getAmount(),
 				transaction.getStatus().name(),
 				transaction.getCreatedAt());
+		paymentActivityLogService.logTopUpCreated(
+				transaction,
+				request,
+				response,
+				durationMs(startedAtNanos),
+				now);
 		storeIdempotency(userId, idempotencyKey, requestHash, HttpStatus.CREATED.value(), response, now);
 		return new IdempotentResponse(HttpStatus.CREATED.value(), response);
+	}
+
+	private Long durationMs(long startedAtNanos) {
+		return (System.nanoTime() - startedAtNanos) / 1_000_000L;
 	}
 
 	private void callGatewayAfterCommit(UUID paymentTransactionId, TopUpRequest request, String traceId) {

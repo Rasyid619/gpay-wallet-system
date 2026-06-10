@@ -44,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WalletTransferService {
 
 	private static final String ACTION_TRANSFER = "WALLET_TRANSFER";
+	private static final String SERVICE_NAME = "wallet-service";
 
 	private final ActivityLogRepository activityLogRepository;
 	private final IdempotencyKeyRepository idempotencyKeyRepository;
@@ -314,6 +315,7 @@ public class WalletTransferService {
 				ACTION_TRANSFER,
 				status,
 				traceId,
+				SERVICE_NAME,
 				null,
 				now));
 	}

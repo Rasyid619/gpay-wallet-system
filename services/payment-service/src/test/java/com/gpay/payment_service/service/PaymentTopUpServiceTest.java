@@ -5,14 +5,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gpay.payment_service.constant.PaymentGatewayMode;
 import com.gpay.payment_service.dto.IdempotentResponse;
 import com.gpay.payment_service.dto.TopUpRequest;
 import com.gpay.payment_service.dto.TopUpResponse;
+import com.gpay.payment_service.entity.ActivityLog;
 import com.gpay.payment_service.entity.TopupTransaction;
 import com.gpay.payment_service.exception.BadRequestException;
 import com.gpay.payment_service.exception.IdempotencyConflictException;
+import com.gpay.payment_service.repository.ActivityLogRepository;
 import com.gpay.payment_service.repository.IdempotencyKeyRepository;
 import com.gpay.payment_service.repository.TopupTransactionRepository;
 import java.util.UUID;
@@ -42,7 +46,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class PaymentTopUpServiceTest {
 
 	@Autowired
+	private ActivityLogRepository activityLogRepository;
+
+	@Autowired
 	private IdempotencyKeyRepository idempotencyKeyRepository;
+
+	@Autowired
+	private ObjectMapper objectMapper;
 
 	@Autowired
 	private PaymentTopUpService paymentTopUpService;
@@ -83,6 +93,18 @@ class PaymentTopUpServiceTest {
 		assertThat(transaction.getStatus().name()).isEqualTo("PENDING");
 		assertThat(transaction.getIdempotencyKey()).isEqualTo(idempotencyKey);
 		assertThat(transaction.getTraceId()).isEqualTo("trace-topup");
+		ActivityLog activityLog = activityLogRepository
+				.findByTransactionIdOrderByCreatedAtAsc(body.paymentTransactionId())
+				.getFirst();
+		assertThat(activityLog.getUserId()).isEqualTo(userId);
+		assertThat(activityLog.getTransactionId()).isEqualTo(body.paymentTransactionId());
+		assertThat(activityLog.getServiceName()).isEqualTo("payment-service");
+		assertThat(activityLog.getAction()).isEqualTo("PAYMENT_TOP_UP");
+		assertThat(activityLog.getStatus()).isEqualTo("PENDING");
+		assertThat(activityLog.getTraceId()).isEqualTo("trace-topup");
+		assertThat(activityLog.getDurationMs()).isNotNull();
+		assertThat(readPayload(activityLog.getRequestPayload()).get("amount").asLong()).isEqualTo(75000L);
+		assertThat(readPayload(activityLog.getResponsePayload()).get("status").asText()).isEqualTo("PENDING");
 		assertThat(idempotencyKeyRepository.findByUserIdAndIdempotencyKey(userId, idempotencyKey)).isPresent();
 		verify(paymentGatewayClient).requestTopUp(eq(body.paymentTransactionId()), eq(request), eq("trace-topup"));
 	}
@@ -175,5 +197,13 @@ class PaymentTopUpServiceTest {
 				new TopUpRequest(UUID.randomUUID(), 75000L, PaymentGatewayMode.SUCCESS),
 				"trace-blank"))
 				.isInstanceOf(BadRequestException.class);
+	}
+
+	private JsonNode readPayload(String payload) {
+		try {
+			return objectMapper.readTree(payload);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Activity payload should be valid JSON", ex);
+		}
 	}
 }
