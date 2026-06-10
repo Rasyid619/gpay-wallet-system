@@ -36,6 +36,8 @@ paths:
       servers:
         - url: http://localhost:8081
           description: Local Auth Service.
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
       requestBody:
         required: true
         content:
@@ -63,6 +65,8 @@ paths:
       servers:
         - url: http://localhost:8081
           description: Local Auth Service.
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
       requestBody:
         required: true
         content:
@@ -90,6 +94,8 @@ paths:
       servers:
         - url: http://localhost:8081
           description: Local Auth Service.
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
       requestBody:
         required: true
         content:
@@ -117,6 +123,8 @@ paths:
       servers:
         - url: http://localhost:8081
           description: Local Auth Service.
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
       security:
         - BearerAuth: []
       responses:
@@ -140,6 +148,8 @@ paths:
       servers:
         - url: http://localhost:8082
           description: Local Wallet Service.
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
       security:
         - BearerAuth: []
       responses:
@@ -166,6 +176,7 @@ paths:
       security:
         - BearerAuth: []
       parameters:
+        - $ref: "#/components/parameters/TraceId"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -190,6 +201,7 @@ paths:
       security:
         - BearerAuth: []
       parameters:
+        - $ref: "#/components/parameters/TraceId"
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
@@ -225,6 +237,7 @@ paths:
       security:
         - InternalTokenAuth: []
       parameters:
+        - $ref: "#/components/parameters/TraceId"
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
@@ -260,6 +273,7 @@ paths:
       security:
         - BearerAuth: []
       parameters:
+        - $ref: "#/components/parameters/TraceId"
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
@@ -295,6 +309,7 @@ paths:
         - url: http://localhost:8083
           description: Local Payment Service.
       parameters:
+        - $ref: "#/components/parameters/TraceId"
         - name: X-Gateway-Signature
           in: header
           required: true
@@ -337,12 +352,7 @@ paths:
         - url: http://localhost:8084
           description: Local Mock Gateway Service.
       parameters:
-        - name: X-Trace-Id
-          in: header
-          required: false
-          description: Optional trace id propagated to the Payment webhook callback.
-          schema:
-            type: string
+        - $ref: "#/components/parameters/TraceId"
       requestBody:
         required: true
         content:
@@ -361,6 +371,13 @@ paths:
 
 components:
   parameters:
+    TraceId:
+      name: X-Trace-Id
+      in: header
+      required: false
+      description: Optional request trace id. If omitted, the service generates one, returns it in the X-Trace-Id response header, stores it in MDC logs, and propagates it on service-to-service calls.
+      schema:
+        type: string
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -443,6 +460,14 @@ components:
             message: Resource was not found
     Unauthorized:
       description: Authentication is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: UNAUTHORIZED
+            message: Authentication is required
+            trace_id: trace-auth-123
     TooManyRequests:
       description: The authenticated user exceeded the payment top-up rate limit.
       content:
@@ -504,6 +529,11 @@ components:
         message:
           type: string
           example: Invalid request
+        trace_id:
+          type: string
+          nullable: true
+          description: Request trace id generated or preserved by the service when the error is handled by the service exception layer.
+          example: trace-payment-123
 
     AuthRegisterRequest:
       type: object

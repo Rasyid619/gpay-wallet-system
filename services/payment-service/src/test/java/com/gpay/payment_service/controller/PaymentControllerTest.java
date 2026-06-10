@@ -1,14 +1,17 @@
 package com.gpay.payment_service.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gpay.payment_service.config.SecurityConfig;
+import com.gpay.payment_service.config.TraceIdFilter;
 import com.gpay.payment_service.dto.GatewayWebhookResponse;
 import com.gpay.payment_service.dto.IdempotentResponse;
 import com.gpay.payment_service.dto.TopUpRequest;
@@ -41,7 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * MVC tests for authenticated payment top-up endpoint access.
  */
 @WebMvcTest(PaymentController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class})
+@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class, TraceIdFilter.class})
 @TestPropertySource(properties = {
 		"jwt.secret=test-secret-minimum-32-characters-long",
 		"payment.gateway.top-up-url=http://localhost:8084/mock-gateway/top-up",
@@ -134,6 +137,7 @@ class PaymentControllerTest {
 								}
 								""".formatted(walletId)))
 				.andExpect(status().isCreated())
+				.andExpect(header().string("X-Trace-Id", "trace-payment"))
 				.andExpect(jsonPath("$.payment_transaction_id").value(paymentTransactionId.toString()))
 				.andExpect(jsonPath("$.wallet_id").value(walletId.toString()))
 				.andExpect(jsonPath("$.amount").value(75000))
@@ -153,7 +157,10 @@ class PaymentControllerTest {
 								  "gateway_mode": "SUCCESS"
 								}
 								""".formatted(UUID.randomUUID())))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().exists("X-Trace-Id"))
+				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"))
+				.andExpect(jsonPath("$.trace_id").exists());
 
 		verifyNoInteractions(paymentTopUpService);
 	}
@@ -163,6 +170,7 @@ class PaymentControllerTest {
 		mockMvc.perform(post("/payments/top-up")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here")
 						.header("Idempotency-Key", "topup-key-invalid-token")
+						.header("X-Trace-Id", "trace-invalid-payment")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -171,7 +179,10 @@ class PaymentControllerTest {
 								  "gateway_mode": "SUCCESS"
 								}
 								""".formatted(UUID.randomUUID())))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().string("X-Trace-Id", "trace-invalid-payment"))
+				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"))
+				.andExpect(jsonPath("$.trace_id").value("trace-invalid-payment"));
 
 		verifyNoInteractions(paymentTopUpService);
 	}
@@ -221,7 +232,7 @@ class PaymentControllerTest {
 				eq(userId),
 				eq("topup-key-rate-limit"),
 				any(TopUpRequest.class),
-				eq(null)))
+				anyString()))
 				.thenThrow(new RateLimitExceededException("Maximum 5 payment requests per minute allowed"));
 
 		mockMvc.perform(post("/payments/top-up")
@@ -236,8 +247,10 @@ class PaymentControllerTest {
 								}
 								""".formatted(walletId)))
 				.andExpect(status().isTooManyRequests())
+				.andExpect(header().exists("X-Trace-Id"))
 				.andExpect(jsonPath("$.error").value("RATE_LIMIT_EXCEEDED"))
-				.andExpect(jsonPath("$.message").value("Maximum 5 payment requests per minute allowed"));
+				.andExpect(jsonPath("$.message").value("Maximum 5 payment requests per minute allowed"))
+				.andExpect(jsonPath("$.trace_id").exists());
 	}
 
 	@Test
@@ -248,7 +261,7 @@ class PaymentControllerTest {
 				eq(userId),
 				eq("topup-key-redis-down"),
 				any(TopUpRequest.class),
-				eq(null)))
+				anyString()))
 				.thenThrow(new RateLimitUnavailableException("Payment rate limit cannot be verified"));
 
 		mockMvc.perform(post("/payments/top-up")

@@ -7,9 +7,11 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gpay.wallet_service.config.SecurityConfig;
+import com.gpay.wallet_service.config.TraceIdFilter;
 import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.TransferRequest;
 import com.gpay.wallet_service.dto.TransferResponse;
@@ -46,7 +48,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * MVC tests for authenticated wallet endpoint access.
  */
 @WebMvcTest(WalletController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class})
+@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class, TraceIdFilter.class})
 @TestPropertySource(properties = "jwt.secret=test-secret-minimum-32-characters-long")
 class WalletControllerTest {
 
@@ -80,7 +82,10 @@ class WalletControllerTest {
 	@Test
 	void returnsUnauthorizedWhenTokenIsMissing() throws Exception {
 		mockMvc.perform(get("/wallets/balance"))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().exists("X-Trace-Id"))
+				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"))
+				.andExpect(jsonPath("$.trace_id").exists());
 
 		verifyNoInteractions(walletBalanceService);
 	}
@@ -88,8 +93,12 @@ class WalletControllerTest {
 	@Test
 	void returnsUnauthorizedWhenTokenIsInvalid() throws Exception {
 		mockMvc.perform(get("/wallets/balance")
-						.header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here"))
-				.andExpect(status().isUnauthorized());
+						.header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here")
+						.header("X-Trace-Id", "trace-invalid-wallet"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().string("X-Trace-Id", "trace-invalid-wallet"))
+				.andExpect(jsonPath("$.error").value("UNAUTHORIZED"))
+				.andExpect(jsonPath("$.trace_id").value("trace-invalid-wallet"));
 
 		verifyNoInteractions(walletBalanceService);
 	}
@@ -191,6 +200,7 @@ class WalletControllerTest {
 								}
 								""".formatted(receiverWalletId)))
 				.andExpect(status().isOk())
+				.andExpect(header().string("X-Trace-Id", "trace-1"))
 				.andExpect(jsonPath("$.transfer_id").value(transferId.toString()))
 				.andExpect(jsonPath("$.sender_wallet_id").value(senderWalletId.toString()))
 				.andExpect(jsonPath("$.receiver_wallet_id").value(receiverWalletId.toString()))
@@ -211,7 +221,9 @@ class WalletControllerTest {
 								}
 								""".formatted(UUID.randomUUID())))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+				.andExpect(header().exists("X-Trace-Id"))
+				.andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.trace_id").exists());
 
 		verifyNoInteractions(walletTransferService);
 	}

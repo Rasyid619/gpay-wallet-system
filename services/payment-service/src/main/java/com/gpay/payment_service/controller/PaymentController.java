@@ -1,5 +1,6 @@
 package com.gpay.payment_service.controller;
 
+import com.gpay.payment_service.config.TraceIdContext;
 import com.gpay.payment_service.dto.IdempotentResponse;
 import com.gpay.payment_service.dto.GatewayWebhookResponse;
 import com.gpay.payment_service.dto.TopUpRequest;
@@ -29,9 +30,12 @@ public class PaymentController {
 	public ResponseEntity<Object> topUp(
 			@AuthenticationPrincipal UUID userId,
 			@RequestHeader("Idempotency-Key") String idempotencyKey,
-			@RequestHeader(value = "X-Trace-Id", required = false) String traceId,
 			@Valid @RequestBody TopUpRequest request) {
-		IdempotentResponse response = paymentTopUpService.topUp(userId, idempotencyKey, request, traceId);
+		IdempotentResponse response = paymentTopUpService.topUp(
+				userId,
+				idempotencyKey,
+				request,
+				TraceIdContext.getTraceId());
 		return ResponseEntity.status(response.status()).body(response.body());
 	}
 

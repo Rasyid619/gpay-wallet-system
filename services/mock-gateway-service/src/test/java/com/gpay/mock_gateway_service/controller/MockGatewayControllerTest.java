@@ -2,14 +2,17 @@ package com.gpay.mock_gateway_service.controller;
 
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gpay.mock_gateway_service.config.TraceIdFilter;
 import com.gpay.mock_gateway_service.dto.MockGatewayTopUpRequest;
 import com.gpay.mock_gateway_service.dto.MockGatewayTopUpResponse;
 import com.gpay.mock_gateway_service.exception.GlobalExceptionHandler;
@@ -25,7 +28,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(MockGatewayController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, TraceIdFilter.class})
 @TestPropertySource(properties = {
 		"mock-gateway.timeout-delay-ms=10",
 		"mock-gateway.payment-webhook-url=http://localhost:8083/payments/webhook/gateway",
@@ -58,6 +61,7 @@ class MockGatewayControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(validRequest(paymentTransactionId, walletId, "SUCCESS")))
 				.andExpect(status().isOk())
+				.andExpect(header().string("X-Trace-Id", "trace-gateway"))
 				.andExpect(jsonPath("$.payment_transaction_id").value(paymentTransactionId.toString()))
 				.andExpect(jsonPath("$.wallet_id").value(walletId.toString()))
 				.andExpect(jsonPath("$.amount").value(75000))
@@ -70,7 +74,7 @@ class MockGatewayControllerTest {
 
 	@Test
 	void acceptsFailedTopUpSimulation() throws Exception {
-		when(mockGatewayTopUpService.topUp(any(MockGatewayTopUpRequest.class), eq(null)))
+		when(mockGatewayTopUpService.topUp(any(MockGatewayTopUpRequest.class), anyString()))
 				.thenReturn(new MockGatewayTopUpResponse(
 						UUID.randomUUID(),
 						UUID.randomUUID(),
@@ -84,13 +88,14 @@ class MockGatewayControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(validRequest(UUID.randomUUID(), UUID.randomUUID(), "FAILED")))
 				.andExpect(status().isOk())
+				.andExpect(header().exists("X-Trace-Id"))
 				.andExpect(jsonPath("$.mode").value("FAILED"))
 				.andExpect(jsonPath("$.status").value("FAILED"));
 	}
 
 	@Test
 	void acceptsTimeoutTopUpSimulation() throws Exception {
-		when(mockGatewayTopUpService.topUp(any(MockGatewayTopUpRequest.class), eq(null)))
+		when(mockGatewayTopUpService.topUp(any(MockGatewayTopUpRequest.class), anyString()))
 				.thenReturn(new MockGatewayTopUpResponse(
 						UUID.randomUUID(),
 						UUID.randomUUID(),
