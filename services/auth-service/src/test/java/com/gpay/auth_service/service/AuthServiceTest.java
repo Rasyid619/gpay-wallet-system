@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,6 +21,7 @@ import com.gpay.auth_service.entity.UserRole;
 import com.gpay.auth_service.exception.ConflictException;
 import com.gpay.auth_service.exception.NotFoundException;
 import com.gpay.auth_service.exception.UnauthorizedException;
+import com.gpay.auth_service.exception.WalletProvisioningException;
 import com.gpay.auth_service.repository.RefreshTokenRepository;
 import com.gpay.auth_service.repository.UserRepository;
 import com.gpay.auth_service.security.HashUtil;
@@ -56,11 +58,19 @@ class AuthServiceTest {
 	@Mock
 	private PasswordEncoder passwordEncoder;
 
+	@Mock
+	private WalletProvisioningClient walletProvisioningClient;
+
 	private AuthService authService;
 
 	@BeforeEach
 	void setUp() {
-		authService = new AuthService(userRepository, refreshTokenRepository, jwtService, passwordEncoder);
+		authService = new AuthService(
+				userRepository,
+				refreshTokenRepository,
+				jwtService,
+				passwordEncoder,
+				walletProvisioningClient);
 		ReflectionTestUtils.setField(authService, "refreshTokenExpirationDays", 7);
 	}
 
@@ -79,6 +89,23 @@ class AuthServiceTest {
 			assertThat(response.userId()).isNotNull();
 			assertThat(response.createdAt()).isNotNull();
 			verify(userRepository).save(any(User.class));
+			verify(walletProvisioningClient).provisionWallet(response.userId(), null);
+		}
+
+		@Test
+		void registersUserEvenWhenWalletProvisioningFails() {
+			when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+			when(passwordEncoder.encode("Password1!")).thenReturn("$2a$hashed");
+			when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+			doThrow(new WalletProvisioningException("Wallet Service unavailable", new RuntimeException()))
+					.when(walletProvisioningClient).provisionWallet(any(), any());
+
+			RegisterResponse response = authService.register(new RegisterRequest("new@example.com", "Password1!"));
+
+			assertThat(response.email()).isEqualTo("new@example.com");
+			assertThat(response.userId()).isNotNull();
+			verify(userRepository).save(any(User.class));
+			verify(walletProvisioningClient).provisionWallet(response.userId(), null);
 		}
 
 		@Test
@@ -92,6 +119,7 @@ class AuthServiceTest {
 					.hasMessageContaining("already registered");
 
 			verify(userRepository, never()).save(any());
+			verify(walletProvisioningClient, never()).provisionWallet(any(), any());
 		}
 
 		@Test

@@ -13,7 +13,6 @@ import com.gpay.wallet_service.entity.LedgerEntry;
 import com.gpay.wallet_service.entity.Wallet;
 import com.gpay.wallet_service.exception.BadRequestException;
 import com.gpay.wallet_service.exception.IdempotencyConflictException;
-import com.gpay.wallet_service.exception.InternalAuthenticationException;
 import com.gpay.wallet_service.exception.PaymentTransactionConflictException;
 import com.gpay.wallet_service.exception.WalletNotFoundException;
 import com.gpay.wallet_service.repository.ActivityLogRepository;
@@ -25,11 +24,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,11 +41,10 @@ public class InternalWalletCreditService {
 
 	private final ActivityLogRepository activityLogRepository;
 	private final IdempotencyKeyRepository idempotencyKeyRepository;
+	private final InternalWalletAuthenticationService internalWalletAuthenticationService;
 	private final LedgerEntryRepository ledgerEntryRepository;
 	private final ObjectMapper objectMapper;
 	private final WalletRepository walletRepository;
-	@Value("${wallet.internal-token}")
-	private String internalToken;
 
 	/**
 	 * Creates or replays an internal wallet credit.
@@ -65,7 +61,7 @@ public class InternalWalletCreditService {
 			String idempotencyKey,
 			InternalWalletCreditRequest request,
 			String traceId) {
-		validateInternalToken(providedInternalToken);
+		internalWalletAuthenticationService.validate(providedInternalToken);
 		validateIdempotencyKey(idempotencyKey);
 
 		String requestHash = hashRequest(request);
@@ -81,18 +77,6 @@ public class InternalWalletCreditService {
 		}
 
 		return processCredit(idempotencyKey, requestHash, request, traceId);
-	}
-
-	private void validateInternalToken(String providedInternalToken) {
-		if (internalToken == null || internalToken.isBlank()) {
-			throw new InternalAuthenticationException("Internal wallet token is not configured");
-		}
-
-		byte[] expected = internalToken.getBytes(StandardCharsets.UTF_8);
-		byte[] provided = Objects.requireNonNullElse(providedInternalToken, "").getBytes(StandardCharsets.UTF_8);
-		if (!MessageDigest.isEqual(expected, provided)) {
-			throw new InternalAuthenticationException("Internal authentication is invalid");
-		}
 	}
 
 	private void validateIdempotencyKey(String idempotencyKey) {

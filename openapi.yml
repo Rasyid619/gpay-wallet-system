@@ -32,7 +32,7 @@ paths:
       tags:
         - Auth
       summary: Register a user.
-      description: Creates a user account with a BCrypt-hashed password.
+      description: Creates a user account with a BCrypt-hashed password and attempts to provision a zero-balance Wallet Service wallet through an internal HTTP call. Provisioning is best-effort, so registration still succeeds when Wallet Service is unavailable; the wallet is then provisioned on first wallet access.
       servers:
         - url: http://localhost:8081
           description: Local Auth Service.
@@ -46,7 +46,7 @@ paths:
               $ref: "#/components/schemas/AuthRegisterRequest"
       responses:
         "201":
-          description: User was registered.
+          description: User was registered. Wallet provisioning was attempted best-effort and, if it did not complete, the wallet is provisioned on first wallet access.
           content:
             application/json:
               schema:
@@ -144,7 +144,7 @@ paths:
       tags:
         - Wallet
       summary: Get the authenticated wallet balance.
-      description: Returns the authenticated user's wallet balance as whole IDR.
+      description: Returns the authenticated user's wallet balance as whole IDR. A zero-balance wallet is provisioned on first access if the user does not have one yet.
       servers:
         - url: http://localhost:8082
           description: Local Wallet Service.
@@ -161,8 +161,6 @@ paths:
                 $ref: "#/components/schemas/WalletBalanceShowResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/WalletNotFound"
 
   /wallets/mutations:
     get:
@@ -224,6 +222,37 @@ paths:
           $ref: "#/components/responses/WalletNotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+
+  /internal/wallets/provision:
+    post:
+      tags:
+        - Internal Wallet
+      summary: Provision a wallet for a registered user.
+      description: Internal endpoint used by auth-service after successful registration. Requires internal token authentication and is idempotent by user_id; repeated calls for the same user return the existing zero-balance wallet.
+      servers:
+        - url: http://localhost:8082
+          description: Local Wallet Service.
+      security:
+        - InternalTokenAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InternalWalletProvisionCreateRequest"
+      responses:
+        "200":
+          description: Wallet was created or an existing wallet for the user was returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalWalletProvisionShowResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /internal/wallets/credit:
     post:
@@ -752,6 +781,45 @@ components:
           type: string
           enum:
             - SUCCESS
+        created_at:
+          type: string
+          format: date-time
+
+    InternalWalletProvisionCreateRequest:
+      type: object
+      required:
+        - user_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: Auth-service user identifier that owns the wallet.
+
+    InternalWalletProvisionShowResponse:
+      type: object
+      required:
+        - wallet_id
+        - user_id
+        - balance
+        - status
+        - created_at
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        balance:
+          type: integer
+          format: int64
+          description: Initial wallet balance in whole IDR.
+          example: 0
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - SUSPENDED
         created_at:
           type: string
           format: date-time

@@ -25,3 +25,4 @@ docker-data/
 # Codex / agent local guidance
 AGENTS.md
 CODEX.java.md
+CLAUDE.md

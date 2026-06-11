@@ -3,7 +3,10 @@ package com.gpay.wallet_service.controller;
 import com.gpay.wallet_service.config.TraceIdContext;
 import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.InternalWalletCreditRequest;
+import com.gpay.wallet_service.dto.InternalWalletProvisionRequest;
+import com.gpay.wallet_service.dto.InternalWalletProvisionResponse;
 import com.gpay.wallet_service.service.InternalWalletCreditService;
+import com.gpay.wallet_service.service.InternalWalletProvisionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +23,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class InternalWalletController {
 
 	private final InternalWalletCreditService internalWalletCreditService;
+	private final InternalWalletProvisionService internalWalletProvisionService;
+
+	@PostMapping("/provision")
+	public ResponseEntity<InternalWalletProvisionResponse> provision(
+			@RequestHeader("X-Internal-Token") String internalToken,
+			@Valid @RequestBody InternalWalletProvisionRequest request) {
+		return ResponseEntity.ok(internalWalletProvisionService.provision(internalToken, request));
+	}
 
 	@PostMapping("/credit")
 	public ResponseEntity<Object> credit(

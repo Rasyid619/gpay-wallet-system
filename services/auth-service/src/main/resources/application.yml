@@ -27,3 +27,9 @@ jwt:
   secret: ${JWT_SECRET:change-this-secret-minimum-32-characters-long}
   access-token-expiration-minutes: ${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:15}
   refresh-token-expiration-days: ${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:7}
+
+auth:
+  wallet:
+    provision-url: ${AUTH_WALLET_PROVISION_URL:http://localhost:8082/internal/wallets/provision}
+    internal-token: ${AUTH_WALLET_INTERNAL_TOKEN:change-this-wallet-internal-token}
+    provision-timeout-ms: ${AUTH_WALLET_PROVISION_TIMEOUT_MS:5000}
