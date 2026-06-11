@@ -1,6 +1,6 @@
 package com.gpay.mock_gateway_service.controller;
 
-import com.gpay.mock_gateway_service.config.TraceIdContext;
+import com.gpay.common.tracing.TraceIdContext;
 import com.gpay.mock_gateway_service.dto.MockGatewayTopUpRequest;
 import com.gpay.mock_gateway_service.dto.MockGatewayTopUpResponse;
 import com.gpay.mock_gateway_service.service.MockGatewayTopUpService;

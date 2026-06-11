@@ -1,6 +1,6 @@
 package com.gpay.wallet_service.exception;
 
-import com.gpay.wallet_service.config.TraceIdContext;
+import com.gpay.common.tracing.TraceIdContext;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;

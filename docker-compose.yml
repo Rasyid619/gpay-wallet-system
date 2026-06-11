@@ -30,7 +30,8 @@ services:
 
   auth-service:
     build:
-      context: ./services/auth-service
+      context: .
+      dockerfile: services/auth-service/Dockerfile
     image: gpay-auth-service:local
     container_name: gpay-auth-service
     depends_on:
@@ -53,7 +54,8 @@ services:
 
   wallet-service:
     build:
-      context: ./services/wallet-service
+      context: .
+      dockerfile: services/wallet-service/Dockerfile
     image: gpay-wallet-service:local
     container_name: gpay-wallet-service
     depends_on:
@@ -71,7 +73,8 @@ services:
 
   payment-service:
     build:
-      context: ./services/payment-service
+      context: .
+      dockerfile: services/payment-service/Dockerfile
     image: gpay-payment-service:local
     container_name: gpay-payment-service
     depends_on:
@@ -107,7 +110,8 @@ services:
 
   mock-gateway-service:
     build:
-      context: ./services/mock-gateway-service
+      context: .
+      dockerfile: services/mock-gateway-service/Dockerfile
     image: gpay-mock-gateway-service:local
     container_name: gpay-mock-gateway-service
     environment:

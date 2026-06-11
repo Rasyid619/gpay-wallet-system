@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gpay.payment_service.config.SecurityConfig;
-import com.gpay.payment_service.config.TraceIdFilter;
+import com.gpay.common.tracing.TraceIdFilter;
 import com.gpay.payment_service.dto.GatewayWebhookResponse;
 import com.gpay.payment_service.dto.IdempotentResponse;
 import com.gpay.payment_service.dto.TopUpRequest;

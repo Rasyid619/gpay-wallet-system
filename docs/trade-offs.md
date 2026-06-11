@@ -592,6 +592,14 @@ common-tracing
 common-idempotency
 ```
 
+## Update
+
+A shared `common` Gradle module now exists (`services/common`) under a root
+multi-module build. Trace ID infrastructure (`common-tracing`) has been moved
+there; its Spring dependencies are declared `compileOnly` so the module shares
+code without forcing dependency versions onto the services. Security, web, and
+idempotency extraction remain future work.
+
 ---
 
 # 16. Payment Schema Strictness vs Flexible Text Schema

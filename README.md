@@ -18,6 +18,11 @@ database, Flyway migrations, and API boundary.
 | Payment Service | `services/payment-service` | `payment_db` | `http://localhost:8083` | Top-up lifecycle, gateway webhook handling, rate limiting, outbox retry |
 | Mock Gateway Service | `services/mock-gateway-service` | none | `http://localhost:8084` | Local gateway simulation for `SUCCESS`, `FAILED`, and `TIMEOUT` modes |
 
+The repository also contains a shared `common` library module (`services/common`)
+that holds cross-cutting infrastructure (currently trace ID handling) consumed by
+the services through the root Gradle multi-module build. It is a library, not a
+runnable service, and does not own a database.
+
 Service-to-service communication uses HTTP APIs. Services must not query another
 service database directly.
 
@@ -228,6 +233,9 @@ Secret alignment required for local workflows:
 
 ## Running A Single Service From The Host
 
+The repository is a single root Gradle multi-module build, so run Gradle from the
+repository root and target a module with `:<service>:<task>`.
+
 Start PostgreSQL and Redis first:
 
 ```bash
@@ -237,24 +245,21 @@ docker compose up -d postgres redis
 Auth Service:
 
 ```bash
-cd services/auth-service
 AUTH_WALLET_PROVISION_URL=http://localhost:8082/internal/wallets/provision \
 AUTH_WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token \
 AUTH_WALLET_PROVISION_TIMEOUT_MS=5000 \
-./gradlew bootRun
+./gradlew :auth-service:bootRun
 ```
 
 Wallet Service:
 
 ```bash
-cd services/wallet-service
-WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token ./gradlew bootRun
+WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token ./gradlew :wallet-service:bootRun
 ```
 
 Payment Service:
 
 ```bash
-cd services/payment-service
 PAYMENT_GATEWAY_TOP_UP_URL=http://localhost:8084/mock-gateway/top-up \
 PAYMENT_GATEWAY_TIMEOUT_MS=5000 \
 PAYMENT_GATEWAY_WEBHOOK_SECRET=change-this-gateway-secret \
@@ -266,47 +271,34 @@ PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS=300000 \
 PAYMENT_OUTBOX_BATCH_SIZE=10 \
 PAYMENT_OUTBOX_WORKER_FIXED_DELAY_MS=5000 \
 PAYMENT_OUTBOX_WORKER_INITIAL_DELAY_MS=5000 \
-./gradlew bootRun
+./gradlew :payment-service:bootRun
 ```
 
 Mock Gateway Service:
 
 ```bash
-cd services/mock-gateway-service
 PAYMENT_WEBHOOK_URL=http://localhost:8083/payments/webhook/gateway \
 GATEWAY_WEBHOOK_SECRET=change-this-gateway-secret \
 MOCK_GATEWAY_TIMEOUT_DELAY_MS=6000 \
-./gradlew bootRun
+./gradlew :mock-gateway-service:bootRun
 ```
 
 ## Running Tests
 
-Run tests from each service directory:
+Run tests from the repository root. Target a single module:
 
 ```bash
-cd services/auth-service
-./gradlew test
+./gradlew :auth-service:test
+./gradlew :wallet-service:test
+./gradlew :payment-service:test
+./gradlew :mock-gateway-service:test
+./gradlew :common:test
 ```
 
+Or run the whole build (all modules) at once:
+
 ```bash
-cd services/wallet-service
 ./gradlew test
-```
-
-```bash
-cd services/payment-service
-./gradlew test
-```
-
-```bash
-cd services/mock-gateway-service
-./gradlew test
-```
-
-For a larger verification pass within one service:
-
-```bash
-./gradlew clean test
 ```
 
 ## Postman Usage

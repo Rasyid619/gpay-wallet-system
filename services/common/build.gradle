@@ -1,0 +1,46 @@
+plugins {
+	id 'java-library'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.gpay'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencyManagement {
+	imports {
+		mavenBom 'org.springframework.boot:spring-boot-dependencies:3.5.14'
+	}
+}
+
+dependencies {
+	// Shared code compiles against Spring APIs that each consuming service
+	// already provides at runtime. Keeping these compileOnly means `common`
+	// does not force dependency versions onto the services.
+	compileOnly 'org.springframework:spring-web'
+	compileOnly 'org.springframework.security:spring-security-web'
+	compileOnly 'org.springframework.boot:spring-boot-autoconfigure'
+	compileOnly 'com.fasterxml.jackson.core:jackson-databind'
+	compileOnly 'jakarta.servlet:jakarta.servlet-api'
+	compileOnly 'org.slf4j:slf4j-api'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework:spring-web'
+	testImplementation 'org.springframework.security:spring-security-web'
+	testImplementation 'jakarta.servlet:jakarta.servlet-api'
+	testImplementation 'com.fasterxml.jackson.core:jackson-databind'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

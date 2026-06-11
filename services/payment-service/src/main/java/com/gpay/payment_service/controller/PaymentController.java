@@ -1,6 +1,6 @@
 package com.gpay.payment_service.controller;
 
-import com.gpay.payment_service.config.TraceIdContext;
+import com.gpay.common.tracing.TraceIdContext;
 import com.gpay.payment_service.dto.IdempotentResponse;
 import com.gpay.payment_service.dto.GatewayWebhookResponse;
 import com.gpay.payment_service.dto.TopUpRequest;
