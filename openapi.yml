@@ -32,7 +32,7 @@ paths:
       tags:
         - Auth
       summary: Register a user.
-      description: Creates a user account with a BCrypt-hashed password and provisions a zero-balance Wallet Service wallet for the new user through an internal HTTP call.
+      description: Creates a user account with a BCrypt-hashed password and attempts to provision a zero-balance Wallet Service wallet through an internal HTTP call. Provisioning is best-effort, so registration still succeeds when Wallet Service is unavailable; the wallet is then provisioned on first wallet access.
       servers:
         - url: http://localhost:8081
           description: Local Auth Service.
@@ -46,7 +46,7 @@ paths:
               $ref: "#/components/schemas/AuthRegisterRequest"
       responses:
         "201":
-          description: User was registered and wallet provisioning completed.
+          description: User was registered. Wallet provisioning was attempted best-effort and, if it did not complete, the wallet is provisioned on first wallet access.
           content:
             application/json:
               schema:
@@ -144,7 +144,7 @@ paths:
       tags:
         - Wallet
       summary: Get the authenticated wallet balance.
-      description: Returns the authenticated user's wallet balance as whole IDR.
+      description: Returns the authenticated user's wallet balance as whole IDR. A zero-balance wallet is provisioned on first access if the user does not have one yet.
       servers:
         - url: http://localhost:8082
           description: Local Wallet Service.
@@ -161,8 +161,6 @@ paths:
                 $ref: "#/components/schemas/WalletBalanceShowResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/WalletNotFound"
 
   /wallets/mutations:
     get:

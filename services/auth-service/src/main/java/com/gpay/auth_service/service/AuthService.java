@@ -13,6 +13,7 @@ import com.gpay.auth_service.entity.UserRole;
 import com.gpay.auth_service.exception.ConflictException;
 import com.gpay.auth_service.exception.NotFoundException;
 import com.gpay.auth_service.exception.UnauthorizedException;
+import com.gpay.auth_service.exception.WalletProvisioningException;
 import com.gpay.auth_service.repository.RefreshTokenRepository;
 import com.gpay.auth_service.repository.UserRepository;
 import com.gpay.auth_service.security.HashUtil;
@@ -23,12 +24,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /* Handles authentication business logic. */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -60,6 +63,9 @@ public class AuthService {
 	/**
 	 * Registers a new user account.
 	 *
+	 * <p>Wallet provisioning is best-effort: registration succeeds even when Wallet
+	 * Service is unavailable, and the wallet is provisioned on first wallet access.
+	 *
 	 * @param request registration details
 	 * @return created user summary
 	 * @throws ConflictException if email is already registered
@@ -74,9 +80,22 @@ public class AuthService {
 		String passwordHash = passwordEncoder.encode(request.password());
 		User user = User.create(UUID.randomUUID(), request.email(), passwordHash, UserRole.USER, now, now);
 		userRepository.save(user);
-		walletProvisioningClient.provisionWallet(user.getId(), TraceIdContext.getTraceId());
+		provisionWalletBestEffort(user.getId(), TraceIdContext.getTraceId());
 
 		return new RegisterResponse(user.getId(), user.getEmail(), user.getCreatedAt());
+	}
+
+	private void provisionWalletBestEffort(UUID userId, String traceId) {
+		try {
+			walletProvisioningClient.provisionWallet(userId, traceId);
+		} catch (WalletProvisioningException ex) {
+			log.warn(
+					"Wallet provisioning failed during registration; wallet will be provisioned on first access. "
+							+ "userId={} traceId={}",
+					userId,
+					traceId,
+					ex);
+		}
 	}
 
 	/**

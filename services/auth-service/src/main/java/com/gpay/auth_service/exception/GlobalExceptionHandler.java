@@ -31,12 +31,6 @@ public class GlobalExceptionHandler {
 				.body(errorBody("NOT_FOUND", ex.getMessage()));
 	}
 
-	@ExceptionHandler(WalletProvisioningException.class)
-	public ResponseEntity<Map<String, String>> handleWalletProvisioning(WalletProvisioningException ex) {
-		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-				.body(errorBody("WALLET_PROVISIONING_FAILED", ex.getMessage()));
-	}
-
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
 		String message = ex.getBindingResult()

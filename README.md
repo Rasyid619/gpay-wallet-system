@@ -64,6 +64,7 @@ The OpenAPI contract is in `openapi.yml`. The Postman collection is in
 - Money uses `BIGINT` in PostgreSQL and `Long` in Java.
 - Public API JSON fields use `snake_case`.
 - Mutating money endpoints require `Idempotency-Key`.
+- Wallet provisioning on registration is best-effort: registration succeeds even when Wallet Service is unavailable, and a zero-balance wallet is provisioned on first wallet access.
 - Secrets must come from environment variables.
 - Flyway owns database schema migrations.
 - Hibernate runs with `ddl-auto: validate`.

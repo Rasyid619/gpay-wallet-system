@@ -51,6 +51,7 @@ public class WalletTransferService {
 	private final LedgerEntryRepository ledgerEntryRepository;
 	private final ObjectMapper objectMapper;
 	private final TransferRepository transferRepository;
+	private final WalletProvisioner walletProvisioner;
 	private final WalletRepository walletRepository;
 	@Value("${wallet.transfer.max-daily-transfer-amount}")
 	private Long maxDailyTransferAmount;
@@ -100,21 +101,7 @@ public class WalletTransferService {
 			TransferRequest request,
 			String traceId) {
 		Instant now = Instant.now();
-		Optional<Wallet> senderWalletReference = walletRepository.findByUserId(userId);
-		if (senderWalletReference.isEmpty()) {
-			return storeErrorResponse(
-					idempotencyKey,
-					userId,
-					requestHash,
-					null,
-					HttpStatus.NOT_FOUND,
-					"WALLET_NOT_FOUND",
-					"Wallet was not found for authenticated user",
-					traceId,
-					now);
-		}
-
-		Wallet senderWalletReferenceValue = senderWalletReference.get();
+		Wallet senderWalletReferenceValue = walletProvisioner.getOrProvision(userId);
 		if (senderWalletReferenceValue.getId().equals(request.receiverWalletId())) {
 			return storeErrorResponse(
 					idempotencyKey,

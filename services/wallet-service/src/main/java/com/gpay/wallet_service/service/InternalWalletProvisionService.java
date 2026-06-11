@@ -1,12 +1,8 @@
 package com.gpay.wallet_service.service;
 
-import com.gpay.wallet_service.constant.WalletStatus;
 import com.gpay.wallet_service.dto.InternalWalletProvisionRequest;
 import com.gpay.wallet_service.dto.InternalWalletProvisionResponse;
 import com.gpay.wallet_service.entity.Wallet;
-import com.gpay.wallet_service.repository.WalletRepository;
-import java.time.Instant;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,10 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InternalWalletProvisionService {
 
-	private static final long INITIAL_BALANCE = 0L;
-
 	private final InternalWalletAuthenticationService internalWalletAuthenticationService;
-	private final WalletRepository walletRepository;
+	private final WalletProvisioner walletProvisioner;
 
 	/**
 	 * Creates or returns the wallet owned by the supplied user id.
@@ -34,20 +28,8 @@ public class InternalWalletProvisionService {
 			InternalWalletProvisionRequest request) {
 		internalWalletAuthenticationService.validate(providedInternalToken);
 
-		Wallet wallet = walletRepository.findByUserId(request.userId())
-				.orElseGet(() -> createWallet(request.userId()));
+		Wallet wallet = walletProvisioner.getOrProvision(request.userId());
 		return response(wallet);
-	}
-
-	private Wallet createWallet(UUID userId) {
-		Instant now = Instant.now();
-		return walletRepository.save(Wallet.create(
-				UUID.randomUUID(),
-				userId,
-				INITIAL_BALANCE,
-				WalletStatus.ACTIVE,
-				now,
-				now));
 	}
 
 	private InternalWalletProvisionResponse response(Wallet wallet) {
