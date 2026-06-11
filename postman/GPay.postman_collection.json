@@ -332,7 +332,7 @@
             "description": "Register user A. Auth Service should automatically provision a zero-balance wallet in Wallet Service.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{user_a_email}}\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"{{user_a_email}}\",\n  \"password\": \"Password123!\"\n}"
             }
           }
         },
@@ -384,7 +384,7 @@
             "description": "Register user B.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{user_b_email}}\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"{{user_b_email}}\",\n  \"password\": \"Password123!\"\n}"
             }
           }
         },
@@ -426,7 +426,7 @@
             "description": "Login as user A and store the main access_token.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{user_a_email}}\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"{{user_a_email}}\",\n  \"password\": \"Password123!\"\n}"
             }
           }
         },
@@ -467,7 +467,7 @@
             "description": "Login as user B so the collection can read user B balance.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{user_b_email}}\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"{{user_b_email}}\",\n  \"password\": \"Password123!\"\n}"
             }
           }
         },
@@ -769,8 +769,8 @@
                   "const body = pm.response.json();",
                   "const items = body.items || [];",
                   "pm.test('Has at least two mutations', () => pm.expect(items.length).to.be.at.least(2));",
-                  "pm.test('Contains top-up credit', () => pm.expect(items.some(item => item.direction === 'CREDIT' && item.source === 'TOP_UP' && item.amount === 100000)).to.eql(true));",
-                  "pm.test('Contains transfer debit', () => pm.expect(items.some(item => item.direction === 'DEBIT' && item.source === 'TRANSFER' && item.amount === 25000)).to.eql(true));"
+                  "pm.test('Contains top-up credit', () => pm.expect(items.some(item => item.type ==='CREDIT' && item.source === 'TOP_UP' && item.amount === 100000)).to.eql(true));",
+                  "pm.test('Contains transfer debit', () => pm.expect(items.some(item => item.type ==='DEBIT' && item.source === 'TRANSFER' && item.amount === 25000)).to.eql(true));"
                 ]
               }
             }
@@ -1084,7 +1084,7 @@
             "description": "Register a separate user so rate-limit attempts do not affect the main flow.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{rate_limit_email}}\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"{{rate_limit_email}}\",\n  \"password\": \"Password123!\"\n}"
             }
           }
         },
@@ -1124,7 +1124,7 @@
             "description": "Login as the rate-limit user.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{rate_limit_email}}\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"{{rate_limit_email}}\",\n  \"password\": \"Password123!\"\n}"
             }
           }
         },
@@ -1500,7 +1500,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
             },
             "description": "Register a new user. Returns 201 Created with user_id, email, and created_at. Password is never returned."
           }
@@ -1542,7 +1542,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
             },
             "description": "Expected: 409 Conflict with error EMAIL_ALREADY_REGISTERED when email is already taken."
           }
@@ -1584,7 +1584,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"Password123!\"\n}"
             },
             "description": "Expected: 400 Bad Request with error VALIDATION_ERROR when email format is invalid."
           }
@@ -1668,7 +1668,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
             },
             "description": "Login with email and password. Returns access_token (15 min) and refresh_token (7 days). The test script auto-saves both tokens to collection variables."
           }
