@@ -1,4 +1,24 @@
 // Root aggregator build for the gpay-wallet-system monorepo.
 // Each module (`:common` and the four services) configures itself in its own
-// build.gradle. This file intentionally holds no shared configuration so that
-// services keep independent dependency management.
+// build.gradle and keeps independent dependency management.
+//
+// Spotless is applied here, once, to every Java module so formatting/lint is
+// consistent across the repo. The steps intentionally avoid a full reformat
+// (no google-java-format) so the existing tab-indented style is preserved.
+
+plugins {
+	id 'com.diffplug.spotless' version '6.25.0' apply false
+}
+
+subprojects {
+	apply plugin: 'com.diffplug.spotless'
+
+	spotless {
+		java {
+			target 'src/**/*.java'
+			removeUnusedImports('cleanthat-javaparser-unnecessaryimport')
+			trimTrailingWhitespace()
+			endWithNewline()
+		}
+	}
+}
