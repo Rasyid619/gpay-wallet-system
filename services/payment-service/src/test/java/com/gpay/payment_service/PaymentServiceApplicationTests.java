@@ -14,6 +14,7 @@ import org.springframework.test.context.TestPropertySource;
 		"payment.outbox.wallet-internal-token=test-internal-token",
 		"payment.outbox.request-timeout-ms=5000",
 		"payment.outbox.retry-delay-ms=60000",
+		"payment.outbox.max-attempts=10",
 		"payment.outbox.processing-timeout-ms=300000",
 		"payment.outbox.batch-size=10",
 		"payment.outbox.worker-fixed-delay-ms=3600000",

@@ -20,8 +20,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @SpringBootTest
 @TestPropertySource(properties = {
@@ -32,6 +34,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 		"payment.outbox.wallet-internal-token=test-internal-token",
 		"payment.outbox.request-timeout-ms=5000",
 		"payment.outbox.retry-delay-ms=60000",
+		"payment.outbox.max-attempts=3",
 		"payment.outbox.processing-timeout-ms=300000",
 		"payment.outbox.batch-size=10",
 		"payment.outbox.worker-fixed-delay-ms=3600000",
@@ -91,6 +94,43 @@ class PaymentOutboxWorkerTest {
 		assertThat(updated.getRetryCount()).isEqualTo(1);
 		assertThat(updated.getLastError()).isEqualTo("wallet service unavailable");
 		assertThat(updated.getNextRetryAt()).isAfter(Instant.now());
+	}
+
+	@Test
+	void exhaustedRetriesMarkOutboxEventFailed() {
+		TopupTransaction transaction = pendingTransaction("trace-outbox-exhausted");
+		OutboxEvent event = pendingOutboxEvent(transaction);
+		Instant past = Instant.now().minusSeconds(1);
+		event.markFailedAttempt("attempt-1", past, past);
+		event.markFailedAttempt("attempt-2", past, past);
+		outboxEventRepository.saveAndFlush(event);
+		doThrow(new RuntimeException("wallet service still unavailable"))
+				.when(walletCreditClient)
+				.creditWallet(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
+
+		paymentOutboxWorker.processPendingWalletCredits();
+
+		OutboxEvent updated = outboxEventRepository.findById(event.getId()).orElseThrow();
+		assertThat(updated.getStatus().name()).isEqualTo("FAILED");
+		assertThat(updated.getRetryCount()).isEqualTo(3);
+		assertThat(updated.getLastError()).isEqualTo("wallet service still unavailable");
+		assertThat(updated.getNextRetryAt()).isNull();
+	}
+
+	@Test
+	void nonRetryableClientErrorMarksOutboxEventFailedImmediately() {
+		TopupTransaction transaction = pendingTransaction("trace-outbox-client-error");
+		OutboxEvent event = pendingOutboxEvent(transaction);
+		doThrow(WebClientResponseException.create(404, "Not Found", HttpHeaders.EMPTY, new byte[0], null))
+				.when(walletCreditClient)
+				.creditWallet(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
+
+		paymentOutboxWorker.processPendingWalletCredits();
+
+		OutboxEvent updated = outboxEventRepository.findById(event.getId()).orElseThrow();
+		assertThat(updated.getStatus().name()).isEqualTo("FAILED");
+		assertThat(updated.getRetryCount()).isEqualTo(1);
+		assertThat(updated.getNextRetryAt()).isNull();
 	}
 
 	@Test

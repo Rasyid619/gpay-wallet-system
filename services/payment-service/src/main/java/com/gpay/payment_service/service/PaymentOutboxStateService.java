@@ -2,6 +2,7 @@ package com.gpay.payment_service.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gpay.payment_service.config.PaymentOutboxProperties;
 import com.gpay.payment_service.constant.OutboxEventStatus;
 import com.gpay.payment_service.dto.ClaimedOutboxEvent;
 import com.gpay.payment_service.dto.WalletCreditOutboxPayload;
@@ -12,15 +13,20 @@ import com.gpay.payment_service.repository.TopupTransactionRepository;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentOutboxStateService {
 
+	private static final String PROCESSING_TIMEOUT_ERROR = "Outbox processing timed out before completion";
+
 	private final ObjectMapper objectMapper;
 	private final OutboxEventRepository outboxEventRepository;
+	private final PaymentOutboxProperties properties;
 	private final TopupTransactionRepository topupTransactionRepository;
 
 	@Transactional
@@ -48,11 +54,23 @@ public class PaymentOutboxStateService {
 		event.markProcessed(Instant.now());
 	}
 
+	/**
+	 * Records a delivery failure, retrying with backoff until the attempt budget
+	 * is exhausted or the failure is non-retryable, then moving to FAILED.
+	 *
+	 * @param eventId   outbox event identifier
+	 * @param error     short failure description retained for diagnostics
+	 * @param retryable whether the failure may succeed on a later attempt
+	 */
 	@Transactional
-	public void markFailedAttempt(UUID eventId, String error, Long retryDelayMs) {
+	public void recordFailedAttempt(UUID eventId, String error, boolean retryable) {
 		OutboxEvent event = outboxEventRepository.findLockedById(eventId).orElseThrow();
 		Instant now = Instant.now();
-		event.markFailedAttempt(error, now.plusMillis(retryDelayMs), now);
+		if (!retryable || isAttemptBudgetExhausted(event)) {
+			markFailed(event, error, retryable, now);
+			return;
+		}
+		event.markFailedAttempt(error, now.plusMillis(properties.retryDelayMs()), now);
 	}
 
 	@Transactional
@@ -62,7 +80,26 @@ public class PaymentOutboxStateService {
 			return;
 		}
 		Instant now = Instant.now();
-		event.markFailedAttempt("Outbox processing timed out before completion", now, now);
+		if (isAttemptBudgetExhausted(event)) {
+			markFailed(event, PROCESSING_TIMEOUT_ERROR, true, now);
+			return;
+		}
+		event.markFailedAttempt(PROCESSING_TIMEOUT_ERROR, now, now);
+	}
+
+	private boolean isAttemptBudgetExhausted(OutboxEvent event) {
+		return event.getRetryCount() + 1 >= properties.maxAttempts();
+	}
+
+	private void markFailed(OutboxEvent event, String error, boolean retryable, Instant now) {
+		event.markFailed(error, now);
+		log.warn(
+				"Outbox event moved to FAILED eventId={} aggregateId={} retryCount={} retryable={} lastError={}",
+				event.getId(),
+				event.getAggregateId(),
+				event.getRetryCount(),
+				retryable,
+				error);
 	}
 
 	private WalletCreditOutboxPayload readPayload(String payload) {

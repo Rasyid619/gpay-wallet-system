@@ -15,7 +15,7 @@ database, Flyway migrations, and API boundary.
 | --- | --- | --- | --- | --- |
 | Auth Service | `services/auth-service` | `auth_db` | `http://localhost:8081` | User registration, login, refresh tokens, current user |
 | Wallet Service | `services/wallet-service` | `wallet_db` | `http://localhost:8082` | Balances, mutations, transfers, internal wallet credit |
-| Payment Service | `services/payment-service` | `payment_db` | `http://localhost:8083` | Top-up lifecycle, gateway webhook handling, rate limiting, outbox retry |
+| Payment Service | `services/payment-service` | `payment_db` | `http://localhost:8083` | Top-up lifecycle, gateway webhook handling, rate limiting, bounded outbox retry (events move to `FAILED` after `PAYMENT_OUTBOX_MAX_ATTEMPTS` or on a non-retryable 4xx) |
 | Mock Gateway Service | `services/mock-gateway-service` | none | `http://localhost:8084` | Local gateway simulation for `SUCCESS`, `FAILED`, and `TIMEOUT` modes |
 
 Service-to-service communication uses HTTP APIs. Services must not query another
@@ -198,6 +198,7 @@ PAYMENT_GATEWAY_WEBHOOK_SECRET
 PAYMENT_WALLET_INTERNAL_TOKEN
 PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS
 PAYMENT_OUTBOX_RETRY_DELAY_MS
+PAYMENT_OUTBOX_MAX_ATTEMPTS
 PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS
 PAYMENT_OUTBOX_BATCH_SIZE
 PAYMENT_OUTBOX_WORKER_FIXED_DELAY_MS
@@ -262,6 +263,7 @@ PAYMENT_WALLET_CREDIT_URL=http://localhost:8082/internal/wallets/credit \
 PAYMENT_WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token \
 PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS=5000 \
 PAYMENT_OUTBOX_RETRY_DELAY_MS=60000 \
+PAYMENT_OUTBOX_MAX_ATTEMPTS=10 \
 PAYMENT_OUTBOX_PROCESSING_TIMEOUT_MS=300000 \
 PAYMENT_OUTBOX_BATCH_SIZE=10 \
 PAYMENT_OUTBOX_WORKER_FIXED_DELAY_MS=5000 \
