@@ -14,6 +14,7 @@ import com.gpay.payment_service.entity.OutboxEvent;
 import com.gpay.payment_service.entity.TopupTransaction;
 import com.gpay.payment_service.repository.OutboxEventRepository;
 import com.gpay.payment_service.repository.TopupTransactionRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 		"payment.outbox.request-timeout-ms=5000",
 		"payment.outbox.retry-delay-ms=60000",
 		"payment.outbox.max-attempts=3",
+		"payment.outbox.max-age-ms=86400000",
 		"payment.outbox.processing-timeout-ms=300000",
 		"payment.outbox.batch-size=10",
 		"payment.outbox.worker-fixed-delay-ms=3600000",
@@ -118,6 +120,22 @@ class PaymentOutboxWorkerTest {
 	}
 
 	@Test
+	void eventOlderThanMaxAgeMarkedFailedWhileRetriesRemain() {
+		TopupTransaction transaction = pendingTransaction("trace-outbox-aged");
+		OutboxEvent event = pendingOutboxEvent(transaction, Instant.now().minus(Duration.ofHours(25)));
+		doThrow(new RuntimeException("wallet service unavailable"))
+				.when(walletCreditClient)
+				.creditWallet(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
+
+		paymentOutboxWorker.processPendingWalletCredits();
+
+		OutboxEvent updated = outboxEventRepository.findById(event.getId()).orElseThrow();
+		assertThat(updated.getStatus().name()).isEqualTo("FAILED");
+		assertThat(updated.getRetryCount()).isEqualTo(1);
+		assertThat(updated.getNextRetryAt()).isNull();
+	}
+
+	@Test
 	void nonRetryableClientErrorMarksOutboxEventFailedImmediately() {
 		TopupTransaction transaction = pendingTransaction("trace-outbox-client-error");
 		OutboxEvent event = pendingOutboxEvent(transaction);
@@ -154,7 +172,6 @@ class PaymentOutboxWorkerTest {
 	}
 
 	private TopupTransaction pendingTransaction(String traceId) {
-		Instant now = Instant.parse("2026-06-09T10:00:00Z");
 		return topupTransactionRepository.save(TopupTransaction.createPending(
 				UUID.randomUUID(),
 				UUID.randomUUID(),
@@ -162,11 +179,14 @@ class PaymentOutboxWorkerTest {
 				75000L,
 				"outbox-worker-key-" + UUID.randomUUID(),
 				traceId,
-				now));
+				Instant.now()));
 	}
 
 	private OutboxEvent pendingOutboxEvent(TopupTransaction transaction) {
-		Instant now = Instant.parse("2026-06-09T10:00:00Z");
+		return pendingOutboxEvent(transaction, Instant.now());
+	}
+
+	private OutboxEvent pendingOutboxEvent(TopupTransaction transaction, Instant createdAt) {
 		WalletCreditOutboxPayload payload = new WalletCreditOutboxPayload(
 				transaction.getWalletId(),
 				transaction.getId(),
@@ -176,7 +196,7 @@ class PaymentOutboxWorkerTest {
 				OutboxEventType.CREDIT_WALLET_REQUESTED,
 				transaction.getId(),
 				writeJson(payload),
-				now));
+				createdAt));
 	}
 
 	private String writeJson(Object value) {

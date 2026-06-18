@@ -56,7 +56,8 @@ public class PaymentOutboxStateService {
 
 	/**
 	 * Records a delivery failure, retrying with backoff until the attempt budget
-	 * is exhausted or the failure is non-retryable, then moving to FAILED.
+	 * is exhausted, the event has outlived its max age, or the failure is
+	 * non-retryable, then moving to FAILED.
 	 *
 	 * @param eventId   outbox event identifier
 	 * @param error     short failure description retained for diagnostics
@@ -66,7 +67,7 @@ public class PaymentOutboxStateService {
 	public void recordFailedAttempt(UUID eventId, String error, boolean retryable) {
 		OutboxEvent event = outboxEventRepository.findLockedById(eventId).orElseThrow();
 		Instant now = Instant.now();
-		if (!retryable || isAttemptBudgetExhausted(event)) {
+		if (!retryable || isAttemptBudgetExhausted(event) || isMaxAgeExceeded(event, now)) {
 			markFailed(event, error, retryable, now);
 			return;
 		}
@@ -80,7 +81,7 @@ public class PaymentOutboxStateService {
 			return;
 		}
 		Instant now = Instant.now();
-		if (isAttemptBudgetExhausted(event)) {
+		if (isAttemptBudgetExhausted(event) || isMaxAgeExceeded(event, now)) {
 			markFailed(event, PROCESSING_TIMEOUT_ERROR, true, now);
 			return;
 		}
@@ -89,6 +90,10 @@ public class PaymentOutboxStateService {
 
 	private boolean isAttemptBudgetExhausted(OutboxEvent event) {
 		return event.getRetryCount() + 1 >= properties.maxAttempts();
+	}
+
+	private boolean isMaxAgeExceeded(OutboxEvent event, Instant now) {
+		return !event.getCreatedAt().plusMillis(properties.maxAgeMs()).isAfter(now);
 	}
 
 	private void markFailed(OutboxEvent event, String error, boolean retryable, Instant now) {
