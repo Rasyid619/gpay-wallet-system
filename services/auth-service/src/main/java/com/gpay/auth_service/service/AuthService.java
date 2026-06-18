@@ -1,6 +1,6 @@
 package com.gpay.auth_service.service;
 
-import com.gpay.auth_service.config.TraceIdContext;
+import com.gpay.common.tracing.TraceIdContext;
 import com.gpay.auth_service.dto.LoginRequest;
 import com.gpay.auth_service.dto.LoginResponse;
 import com.gpay.auth_service.dto.RefreshRequest;

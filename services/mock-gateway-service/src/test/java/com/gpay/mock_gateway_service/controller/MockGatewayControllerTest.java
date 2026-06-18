@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.gpay.mock_gateway_service.config.TraceIdFilter;
+import com.gpay.common.tracing.TraceIdFilter;
 import com.gpay.mock_gateway_service.dto.MockGatewayTopUpRequest;
 import com.gpay.mock_gateway_service.dto.MockGatewayTopUpResponse;
 import com.gpay.mock_gateway_service.exception.GlobalExceptionHandler;

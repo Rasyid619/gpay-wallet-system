@@ -1,6 +1,6 @@
 package com.gpay.wallet_service.controller;
 
-import com.gpay.wallet_service.config.TraceIdContext;
+import com.gpay.common.tracing.TraceIdContext;
 import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.TransferRequest;
 import com.gpay.wallet_service.dto.WalletBalanceResponse;

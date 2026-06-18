@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gpay.wallet_service.config.SecurityConfig;
-import com.gpay.wallet_service.config.TraceIdFilter;
+import com.gpay.common.tracing.TraceIdFilter;
 import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.InternalWalletCreditRequest;
 import com.gpay.wallet_service.dto.InternalWalletCreditResponse;
