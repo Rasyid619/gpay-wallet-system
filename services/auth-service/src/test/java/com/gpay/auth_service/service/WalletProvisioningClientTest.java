@@ -48,6 +48,17 @@ class WalletProvisioningClientTest {
 		assertThat(capturedRequest.firstHeader("X-Trace-Id")).isEqualTo("trace-wallet-provision");
 	}
 
+	@Test
+	void omitsTraceIdHeaderWhenTraceIdIsBlank() throws Exception {
+		CapturedRequest capturedRequest = startServer();
+		WalletProvisioningClient client = client();
+
+		client.provisionWallet(UUID.randomUUID(), null);
+
+		assertThat(capturedRequest.await()).isTrue();
+		assertThat(capturedRequest.traceId).isNull();
+	}
+
 	private WalletProvisioningClient client() {
 		AuthWalletProperties properties = new AuthWalletProperties(
 				URI.create("http://localhost:" + server.getAddress().getPort() + "/internal/wallets/provision"),

@@ -26,3 +26,6 @@ docker-data/
 AGENTS.md
 CODEX.java.md
 CLAUDE.md
+
+# Local Claude Code logs/config
+.claude/
