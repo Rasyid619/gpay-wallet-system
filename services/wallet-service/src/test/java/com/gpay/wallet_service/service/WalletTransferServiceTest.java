@@ -112,6 +112,26 @@ class WalletTransferServiceTest {
 	}
 
 	@Test
+	void rejectsTransferToSameWalletWithoutChangingBalance() {
+		UUID senderUserId = UUID.randomUUID();
+		Wallet senderWallet = saveWallet(senderUserId, 100L);
+
+		IdempotentResponse result = walletTransferService.transfer(
+				senderUserId,
+				"transfer-same-wallet-" + UUID.randomUUID(),
+				new TransferRequest(senderWallet.getId(), 40L),
+				"trace-same-wallet");
+
+		assertThat(result.status()).isEqualTo(400);
+		assertThat(result.body()).asString().contains("SAME_WALLET_TRANSFER");
+		assertThat(walletRepository.findById(senderWallet.getId()).orElseThrow().getBalance()).isEqualTo(100L);
+		assertThat(ledgerEntryRepository.findByWalletUserId(
+				senderUserId,
+				PageRequest.of(0, 20, Sort.unsorted()))
+				.getTotalElements()).isZero();
+	}
+
+	@Test
 	void replaysStoredResponseForSameIdempotencyKeyAndPayload() {
 		UUID senderUserId = UUID.randomUUID();
 		Wallet senderWallet = saveWallet(senderUserId, 100L);

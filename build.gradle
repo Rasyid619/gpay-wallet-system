@@ -21,4 +21,33 @@ subprojects {
 			endWithNewline()
 		}
 	}
+
+	// JaCoCo branch-coverage reporting and enforcement is applied uniformly to
+	// every Java module. The `java-library` plugin also applies `java`, so the
+	// `java` hook covers all modules. Each module's branch threshold is
+	// calibrated in its own build.gradle so the gate is meaningful without
+	// failing on current code.
+	apply plugin: 'jacoco'
+
+	afterEvaluate {
+		tasks.named('jacocoTestReport') {
+			dependsOn tasks.named('test')
+			reports {
+				xml.required = true
+				html.required = true
+			}
+		}
+
+		tasks.named('jacocoTestCoverageVerification') {
+			dependsOn tasks.named('test')
+		}
+
+		tasks.named('test') {
+			finalizedBy tasks.named('jacocoTestReport')
+		}
+
+		tasks.named('check') {
+			dependsOn tasks.named('jacocoTestCoverageVerification')
+		}
+	}
 }
