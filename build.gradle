@@ -1,0 +1,4 @@
+// Root aggregator build for the gpay-wallet-system monorepo.
+// Each module (`:common` and the four services) configures itself in its own
+// build.gradle. This file intentionally holds no shared configuration so that
+// services keep independent dependency management.

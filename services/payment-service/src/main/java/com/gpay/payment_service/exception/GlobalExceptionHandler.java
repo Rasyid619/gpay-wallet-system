@@ -1,6 +1,6 @@
 package com.gpay.payment_service.exception;
 
-import com.gpay.payment_service.config.TraceIdContext;
+import com.gpay.common.tracing.TraceIdContext;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;

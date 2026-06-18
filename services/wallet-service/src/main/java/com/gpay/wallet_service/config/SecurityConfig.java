@@ -2,6 +2,7 @@ package com.gpay.wallet_service.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gpay.wallet_service.security.JwtAuthFilter;
+import com.gpay.common.tracing.TraceIdAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
