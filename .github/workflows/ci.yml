@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  changes:
+    name: Detect changed modules
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.set.outputs.modules }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            shared:
+              - 'build.gradle'
+              - 'settings.gradle'
+              - 'gradle/**'
+              - 'gradlew'
+              - 'gradlew.bat'
+              - '.github/workflows/ci.yml'
+              - 'services/common/**'
+            auth:
+              - 'services/auth-service/**'
+            wallet:
+              - 'services/wallet-service/**'
+            payment:
+              - 'services/payment-service/**'
+            gateway:
+              - 'services/mock-gateway-service/**'
+
+      - name: Compute module matrix
+        id: set
+        run: |
+          mods=()
+          if [ "${{ steps.filter.outputs.shared }}" = "true" ]; then
+            # A shared change (common module, root build, wrapper, or this
+            # workflow) affects every module, so fan out to all of them.
+            mods=(common auth-service wallet-service payment-service mock-gateway-service)
+          else
+            [ "${{ steps.filter.outputs.auth }}" = "true" ] && mods+=(auth-service)
+            [ "${{ steps.filter.outputs.wallet }}" = "true" ] && mods+=(wallet-service)
+            [ "${{ steps.filter.outputs.payment }}" = "true" ] && mods+=(payment-service)
+            [ "${{ steps.filter.outputs.gateway }}" = "true" ] && mods+=(mock-gateway-service)
+          fi
+          if [ ${#mods[@]} -eq 0 ]; then
+            json="[]"
+          else
+            json=$(printf '%s\n' "${mods[@]}" | jq -R . | jq -cs .)
+          fi
+          echo "modules=$json" >> "$GITHUB_OUTPUT"
+          echo "Selected modules: $json"
+
+  build:
+    name: Build & test (${{ matrix.module }})
+    needs: changes
+    if: needs.changes.outputs.modules != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.changes.outputs.modules) }}
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gpay
+          POSTGRES_PASSWORD: gpay
+          POSTGRES_DB: gpay
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gpay"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Create per-service databases
+        env:
+          PGPASSWORD: gpay
+        run: |
+          for db in auth_db wallet_db payment_db; do
+            psql -h localhost -U gpay -d gpay -c "CREATE DATABASE $db"
+          done
+
+      - name: Lint, build, and test (${{ matrix.module }})
+        run: ./gradlew :${{ matrix.module }}:spotlessCheck :${{ matrix.module }}:build --no-daemon --stacktrace
+
+  ci-success:
+    name: CI success
+    needs: [changes, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify build result
+        run: |
+          result="${{ needs.build.result }}"
+          echo "build job result: $result"
+          # 'skipped' means no module needed building (e.g. a docs-only change).
+          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
+            echo "CI passed."
+          else
+            echo "CI failed (build result: $result)."
+            exit 1
+          fi
