@@ -59,6 +59,8 @@ class WalletCreditClientTest {
 				"test-internal-token",
 				5000L,
 				60000L,
+				10,
+				86400000L,
 				300000L,
 				10,
 				3600000L,

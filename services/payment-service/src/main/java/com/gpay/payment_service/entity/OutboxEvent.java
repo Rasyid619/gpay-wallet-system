@@ -97,4 +97,18 @@ public class OutboxEvent {
 		this.nextRetryAt = nextRetryAt;
 		this.updatedAt = now;
 	}
+
+	/**
+	 * Moves the event to the terminal failed state so it is no longer retried.
+	 *
+	 * @param error short failure description retained for diagnostics
+	 * @param now   timestamp for the attempt count and update
+	 */
+	public void markFailed(String error, Instant now) {
+		this.status = OutboxEventStatus.FAILED;
+		this.retryCount = this.retryCount + 1;
+		this.lastError = error;
+		this.nextRetryAt = null;
+		this.updatedAt = now;
+	}
 }

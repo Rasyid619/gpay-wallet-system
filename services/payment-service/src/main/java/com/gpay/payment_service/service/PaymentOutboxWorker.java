@@ -12,8 +12,11 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Slf4j
 @Service
@@ -75,12 +78,24 @@ public class PaymentOutboxWorker {
 					claimedEvent.traceId());
 			paymentOutboxStateService.markProcessed(claimedEvent.eventId());
 		} catch (RuntimeException ex) {
-			log.warn("Wallet credit outbox delivery failed for eventId={}", eventId, ex);
-			paymentOutboxStateService.markFailedAttempt(
+			boolean retryable = isRetryable(ex);
+			log.warn("Wallet credit outbox delivery failed for eventId={} retryable={}", eventId, retryable, ex);
+			paymentOutboxStateService.recordFailedAttempt(
 					claimedEvent.eventId(),
 					safeError(ex.getMessage()),
-					properties.retryDelayMs());
+					retryable);
 		}
+	}
+
+	private boolean isRetryable(RuntimeException ex) {
+		if (ex instanceof WebClientResponseException response) {
+			return !isNonRetryableClientError(response.getStatusCode());
+		}
+		return true;
+	}
+
+	private boolean isNonRetryableClientError(HttpStatusCode status) {
+		return status.is4xxClientError() && status.value() != HttpStatus.TOO_MANY_REQUESTS.value();
 	}
 
 	private String idempotencyKey(UUID eventId) {
