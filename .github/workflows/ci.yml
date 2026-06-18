@@ -113,8 +113,8 @@ jobs:
             psql -h localhost -U gpay -d gpay -c "CREATE DATABASE $db"
           done
 
-      - name: Lint, build, and test (${{ matrix.module }})
-        run: ./gradlew :${{ matrix.module }}:spotlessCheck :${{ matrix.module }}:build --no-daemon --stacktrace
+      - name: Lint, build, test, and verify coverage (${{ matrix.module }})
+        run: ./gradlew :${{ matrix.module }}:spotlessCheck :${{ matrix.module }}:build :${{ matrix.module }}:jacocoTestCoverageVerification --no-daemon --stacktrace
 
   ci-success:
     name: CI success
