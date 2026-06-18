@@ -10,6 +10,7 @@ import com.gpay.wallet_service.dto.InternalWalletCreditRequest;
 import com.gpay.wallet_service.dto.InternalWalletCreditResponse;
 import com.gpay.wallet_service.entity.LedgerEntry;
 import com.gpay.wallet_service.entity.Wallet;
+import com.gpay.wallet_service.exception.BadRequestException;
 import com.gpay.wallet_service.exception.IdempotencyConflictException;
 import com.gpay.wallet_service.exception.InternalAuthenticationException;
 import com.gpay.wallet_service.exception.PaymentTransactionConflictException;
@@ -157,6 +158,20 @@ class InternalWalletCreditServiceTest {
 				"trace-conflict"))
 				.isInstanceOf(PaymentTransactionConflictException.class);
 		assertThat(walletRepository.findById(wallet.getId()).orElseThrow().getBalance()).isEqualTo(150000L);
+	}
+
+	@Test
+	void rejectsCreditWhenIdempotencyKeyIsNull() {
+		Wallet wallet = saveWallet(100000L);
+
+		assertThatThrownBy(() -> internalWalletCreditService.credit(
+				"internal-test-token",
+				null,
+				new InternalWalletCreditRequest(wallet.getId(), UUID.randomUUID(), 50000L),
+				"trace-null-key"))
+				.isInstanceOf(BadRequestException.class);
+
+		assertThat(walletRepository.findById(wallet.getId()).orElseThrow().getBalance()).isEqualTo(100000L);
 	}
 
 	@Test

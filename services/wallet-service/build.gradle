@@ -32,6 +32,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testImplementation 'org.springframework.kafka:spring-kafka-test'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -50,7 +52,7 @@ jacocoTestCoverageVerification {
 			limit {
 				counter = 'BRANCH'
 				value = 'COVEREDRATIO'
-				minimum = 0.65
+				minimum = 0.95
 			}
 		}
 	}

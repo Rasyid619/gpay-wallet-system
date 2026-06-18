@@ -100,6 +100,17 @@ class WalletCreditCommandConsumerTest {
 				.isInstanceOf(BadRequestException.class);
 	}
 
+	@Test
+	void throwsWhenIdempotencyKeyHeaderValueIsNull() {
+		ReflectionTestUtils.setField(consumer, "internalToken", INTERNAL_TOKEN);
+		ConsumerRecord<String, InternalWalletCreditRequest> record =
+				new ConsumerRecord<>("wallet.credit.commands", 0, 0L, "key", creditRequest());
+		record.headers().add("Idempotency-Key", null);
+
+		assertThatThrownBy(() -> consumer.onWalletCreditCommand(record))
+				.isInstanceOf(BadRequestException.class);
+	}
+
 	private InternalWalletCreditRequest creditRequest() {
 		return new InternalWalletCreditRequest(UUID.randomUUID(), UUID.randomUUID(), 50000L);
 	}

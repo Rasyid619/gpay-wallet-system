@@ -9,6 +9,7 @@ import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.TransferRequest;
 import com.gpay.wallet_service.dto.TransferResponse;
 import com.gpay.wallet_service.entity.Wallet;
+import com.gpay.wallet_service.exception.BadRequestException;
 import com.gpay.wallet_service.exception.IdempotencyConflictException;
 import com.gpay.wallet_service.repository.LedgerEntryRepository;
 import com.gpay.wallet_service.repository.WalletRepository;
@@ -69,6 +70,18 @@ class WalletTransferServiceTest {
 				receiverWallet.getUserId(),
 				PageRequest.of(0, 20, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))))
 				.getTotalElements()).isEqualTo(1);
+	}
+
+	@Test
+	void rejectsTransferWhenIdempotencyKeyIsNull() {
+		UUID senderUserId = UUID.randomUUID();
+
+		assertThatThrownBy(() -> walletTransferService.transfer(
+				senderUserId,
+				null,
+				new TransferRequest(UUID.randomUUID(), 40L),
+				"trace-null-key"))
+				.isInstanceOf(BadRequestException.class);
 	}
 
 	@Test
