@@ -1,6 +1,7 @@
 package com.gpay.payment_service;
 
 import com.gpay.payment_service.config.PaymentGatewayProperties;
+import com.gpay.payment_service.config.PaymentKafkaProperties;
 import com.gpay.payment_service.config.PaymentOutboxProperties;
 import com.gpay.payment_service.config.PaymentRateLimitProperties;
 import com.gpay.payment_service.config.PaymentWebhookProperties;
@@ -15,6 +16,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableConfigurationProperties({
 		PaymentRateLimitProperties.class,
 		PaymentGatewayProperties.class,
+		PaymentKafkaProperties.class,
 		PaymentOutboxProperties.class,
 		PaymentWebhookProperties.class
 })

@@ -23,6 +23,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${WALLET_KAFKA_CONSUMER_GROUP_ID:wallet-service}
+
 jwt:
   secret: ${JWT_SECRET:change-this-secret-minimum-32-characters-long}
 
@@ -30,3 +35,6 @@ wallet:
   internal-token: ${WALLET_INTERNAL_TOKEN:}
   transfer:
     max-daily-transfer-amount: ${MAX_DAILY_TRANSFER_AMOUNT:10000000}
+  kafka:
+    wallet-credit-commands-topic: ${WALLET_KAFKA_WALLET_CREDIT_COMMANDS_TOPIC:wallet.credit.commands}
+    dead-letter-topic: ${WALLET_KAFKA_DEAD_LETTER_TOPIC:dead-letter.events}

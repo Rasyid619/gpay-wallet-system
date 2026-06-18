@@ -21,19 +21,16 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @SpringBootTest
 @TestPropertySource(properties = {
 		"payment.gateway.top-up-url=http://localhost:8084/mock-gateway/top-up",
 		"payment.gateway.timeout-ms=5000",
 		"payment.webhook.gateway-secret=test-gateway-webhook-secret",
-		"payment.outbox.wallet-credit-url=http://localhost:8082/internal/wallets/credit",
-		"payment.outbox.wallet-internal-token=test-internal-token",
-		"payment.outbox.request-timeout-ms=5000",
+		"spring.kafka.bootstrap-servers=localhost:9092",
+		"payment.kafka.wallet-credit-commands-topic=wallet.credit.commands",
 		"payment.outbox.retry-delay-ms=60000",
 		"payment.outbox.max-attempts=3",
 		"payment.outbox.max-age-ms=86400000",
@@ -57,17 +54,17 @@ class PaymentOutboxWorkerTest {
 	private TopupTransactionRepository topupTransactionRepository;
 
 	@MockitoBean
-	private WalletCreditClient walletCreditClient;
+	private WalletCreditCommandPublisher walletCreditCommandPublisher;
 
 	@Test
-	void successfulDeliveryMarksOutboxEventProcessed() {
+	void successfulPublishMarksOutboxEventProcessed() throws Exception {
 		TopupTransaction transaction = pendingTransaction("trace-outbox-success");
 		OutboxEvent event = pendingOutboxEvent(transaction);
 
 		paymentOutboxWorker.processPendingWalletCredits();
 
 		ArgumentCaptor<WalletCreditOutboxPayload> payloadCaptor = ArgumentCaptor.forClass(WalletCreditOutboxPayload.class);
-		verify(walletCreditClient).creditWallet(
+		verify(walletCreditCommandPublisher).publish(
 				payloadCaptor.capture(),
 				eq("payment-outbox-" + event.getId()),
 				eq("trace-outbox-success"));
@@ -82,50 +79,50 @@ class PaymentOutboxWorkerTest {
 	}
 
 	@Test
-	void failedDeliveryRemainsRetryableWithFailureMetadata() {
+	void publishFailureRemainsRetryableWithFailureMetadata() throws Exception {
 		TopupTransaction transaction = pendingTransaction("trace-outbox-failure");
 		OutboxEvent event = pendingOutboxEvent(transaction);
-		doThrow(new RuntimeException("wallet service unavailable"))
-				.when(walletCreditClient)
-				.creditWallet(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
+		doThrow(new RuntimeException("broker unavailable"))
+				.when(walletCreditCommandPublisher)
+				.publish(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
 
 		paymentOutboxWorker.processPendingWalletCredits();
 
 		OutboxEvent updated = outboxEventRepository.findById(event.getId()).orElseThrow();
 		assertThat(updated.getStatus().name()).isEqualTo("PENDING");
 		assertThat(updated.getRetryCount()).isEqualTo(1);
-		assertThat(updated.getLastError()).isEqualTo("wallet service unavailable");
+		assertThat(updated.getLastError()).isEqualTo("broker unavailable");
 		assertThat(updated.getNextRetryAt()).isAfter(Instant.now());
 	}
 
 	@Test
-	void exhaustedRetriesMarkOutboxEventFailed() {
+	void exhaustedRetriesMarkOutboxEventFailed() throws Exception {
 		TopupTransaction transaction = pendingTransaction("trace-outbox-exhausted");
 		OutboxEvent event = pendingOutboxEvent(transaction);
 		Instant past = Instant.now().minusSeconds(1);
 		event.markFailedAttempt("attempt-1", past, past);
 		event.markFailedAttempt("attempt-2", past, past);
 		outboxEventRepository.saveAndFlush(event);
-		doThrow(new RuntimeException("wallet service still unavailable"))
-				.when(walletCreditClient)
-				.creditWallet(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
+		doThrow(new RuntimeException("broker still unavailable"))
+				.when(walletCreditCommandPublisher)
+				.publish(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
 
 		paymentOutboxWorker.processPendingWalletCredits();
 
 		OutboxEvent updated = outboxEventRepository.findById(event.getId()).orElseThrow();
 		assertThat(updated.getStatus().name()).isEqualTo("FAILED");
 		assertThat(updated.getRetryCount()).isEqualTo(3);
-		assertThat(updated.getLastError()).isEqualTo("wallet service still unavailable");
+		assertThat(updated.getLastError()).isEqualTo("broker still unavailable");
 		assertThat(updated.getNextRetryAt()).isNull();
 	}
 
 	@Test
-	void eventOlderThanMaxAgeMarkedFailedWhileRetriesRemain() {
+	void eventOlderThanMaxAgeMarkedFailedWhileRetriesRemain() throws Exception {
 		TopupTransaction transaction = pendingTransaction("trace-outbox-aged");
 		OutboxEvent event = pendingOutboxEvent(transaction, Instant.now().minus(Duration.ofHours(25)));
-		doThrow(new RuntimeException("wallet service unavailable"))
-				.when(walletCreditClient)
-				.creditWallet(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
+		doThrow(new RuntimeException("broker unavailable"))
+				.when(walletCreditCommandPublisher)
+				.publish(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
 
 		paymentOutboxWorker.processPendingWalletCredits();
 
@@ -136,23 +133,7 @@ class PaymentOutboxWorkerTest {
 	}
 
 	@Test
-	void nonRetryableClientErrorMarksOutboxEventFailedImmediately() {
-		TopupTransaction transaction = pendingTransaction("trace-outbox-client-error");
-		OutboxEvent event = pendingOutboxEvent(transaction);
-		doThrow(WebClientResponseException.create(404, "Not Found", HttpHeaders.EMPTY, new byte[0], null))
-				.when(walletCreditClient)
-				.creditWallet(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
-
-		paymentOutboxWorker.processPendingWalletCredits();
-
-		OutboxEvent updated = outboxEventRepository.findById(event.getId()).orElseThrow();
-		assertThat(updated.getStatus().name()).isEqualTo("FAILED");
-		assertThat(updated.getRetryCount()).isEqualTo(1);
-		assertThat(updated.getNextRetryAt()).isNull();
-	}
-
-	@Test
-	void staleProcessingEventIsRecoveredAndDelivered() {
+	void staleProcessingEventIsRecoveredAndPublished() throws Exception {
 		TopupTransaction transaction = pendingTransaction("trace-stale-processing");
 		OutboxEvent event = pendingOutboxEvent(transaction);
 		event.markProcessing(Instant.now().minusSeconds(600));
@@ -160,7 +141,7 @@ class PaymentOutboxWorkerTest {
 
 		paymentOutboxWorker.processPendingWalletCredits();
 
-		verify(walletCreditClient).creditWallet(
+		verify(walletCreditCommandPublisher).publish(
 				any(WalletCreditOutboxPayload.class),
 				eq("payment-outbox-" + event.getId()),
 				eq("trace-stale-processing"));
