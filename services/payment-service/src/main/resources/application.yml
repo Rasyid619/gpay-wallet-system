@@ -28,6 +28,9 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
 jwt:
   secret: ${JWT_SECRET:change-this-secret-minimum-32-characters-long}
 
@@ -39,10 +42,9 @@ payment:
     timeout-ms: ${PAYMENT_GATEWAY_TIMEOUT_MS}
   webhook:
     gateway-secret: ${PAYMENT_GATEWAY_WEBHOOK_SECRET}
+  kafka:
+    wallet-credit-commands-topic: ${PAYMENT_KAFKA_WALLET_CREDIT_COMMANDS_TOPIC:wallet.credit.commands}
   outbox:
-    wallet-credit-url: ${PAYMENT_WALLET_CREDIT_URL}
-    wallet-internal-token: ${PAYMENT_WALLET_INTERNAL_TOKEN}
-    request-timeout-ms: ${PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS}
     retry-delay-ms: ${PAYMENT_OUTBOX_RETRY_DELAY_MS}
     max-attempts: ${PAYMENT_OUTBOX_MAX_ATTEMPTS}
     max-age-ms: ${PAYMENT_OUTBOX_MAX_AGE_MS}

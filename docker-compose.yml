@@ -28,6 +28,31 @@ services:
       timeout: 5s
       retries: 10
 
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: gpay-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: gpay-kafka-cluster-0001
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
   auth-service:
     build:
       context: .
@@ -61,6 +86,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       WALLET_DB_URL: jdbc:postgresql://postgres:5432/wallet_db
       WALLET_DB_USERNAME: ${WALLET_DB_USERNAME:-gpay}
@@ -68,6 +95,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-minimum-32-characters-long}
       WALLET_INTERNAL_TOKEN: ${WALLET_INTERNAL_TOKEN:-change-this-wallet-internal-token}
       MAX_DAILY_TRANSFER_AMOUNT: ${MAX_DAILY_TRANSFER_AMOUNT:-10000000}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
     ports:
       - "8082:8082"
 
@@ -82,6 +110,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
       wallet-service:
         condition: service_started
       mock-gateway-service:
@@ -92,14 +122,12 @@ services:
       PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:-gpay}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-minimum-32-characters-long}
       PAYMENT_TOPUP_RATE_LIMIT_PER_MINUTE: ${PAYMENT_TOPUP_RATE_LIMIT_PER_MINUTE:-5}
       PAYMENT_GATEWAY_TOP_UP_URL: http://mock-gateway-service:8084/mock-gateway/top-up
       PAYMENT_GATEWAY_TIMEOUT_MS: ${PAYMENT_GATEWAY_TIMEOUT_MS:-5000}
       PAYMENT_GATEWAY_WEBHOOK_SECRET: ${PAYMENT_GATEWAY_WEBHOOK_SECRET:-change-this-gateway-secret}
-      PAYMENT_WALLET_CREDIT_URL: http://wallet-service:8082/internal/wallets/credit
-      PAYMENT_WALLET_INTERNAL_TOKEN: ${PAYMENT_WALLET_INTERNAL_TOKEN:-change-this-wallet-internal-token}
-      PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS: ${PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS:-5000}
       PAYMENT_OUTBOX_RETRY_DELAY_MS: ${PAYMENT_OUTBOX_RETRY_DELAY_MS:-60000}
       PAYMENT_OUTBOX_MAX_ATTEMPTS: ${PAYMENT_OUTBOX_MAX_ATTEMPTS:-5}
       PAYMENT_OUTBOX_MAX_AGE_MS: ${PAYMENT_OUTBOX_MAX_AGE_MS:-86400000}

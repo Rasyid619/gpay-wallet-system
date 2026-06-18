@@ -9,15 +9,17 @@ import com.gpay.payment_service.repository.OutboxEventRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+/**
+ * Drains PENDING wallet-credit outbox events by publishing them to Kafka and
+ * only marking the row PROCESSED once the broker acknowledges the publish.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,7 +28,7 @@ public class PaymentOutboxWorker {
 	private final OutboxEventRepository outboxEventRepository;
 	private final PaymentOutboxStateService paymentOutboxStateService;
 	private final PaymentOutboxProperties properties;
-	private final WalletCreditClient walletCreditClient;
+	private final WalletCreditCommandPublisher walletCreditCommandPublisher;
 
 	@Scheduled(
 			fixedDelayString = "${payment.outbox.worker-fixed-delay-ms}",
@@ -72,30 +74,22 @@ public class PaymentOutboxWorker {
 		}
 
 		try {
-			walletCreditClient.creditWallet(
+			walletCreditCommandPublisher.publish(
 					claimedEvent.payload(),
 					idempotencyKey(claimedEvent.eventId()),
 					claimedEvent.traceId());
 			paymentOutboxStateService.markProcessed(claimedEvent.eventId());
-		} catch (RuntimeException ex) {
-			boolean retryable = isRetryable(ex);
-			log.warn("Wallet credit outbox delivery failed for eventId={} retryable={}", eventId, retryable, ex);
-			paymentOutboxStateService.recordFailedAttempt(
-					claimedEvent.eventId(),
-					safeError(ex.getMessage()),
-					retryable);
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			recordRetryableFailure(eventId, claimedEvent.eventId(), ex);
+		} catch (ExecutionException | RuntimeException ex) {
+			recordRetryableFailure(eventId, claimedEvent.eventId(), ex);
 		}
 	}
 
-	private boolean isRetryable(RuntimeException ex) {
-		if (ex instanceof WebClientResponseException response) {
-			return !isNonRetryableClientError(response.getStatusCode());
-		}
-		return true;
-	}
-
-	private boolean isNonRetryableClientError(HttpStatusCode status) {
-		return status.is4xxClientError() && status.value() != HttpStatus.TOO_MANY_REQUESTS.value();
+	private void recordRetryableFailure(UUID eventId, UUID claimedEventId, Exception ex) {
+		log.warn("Wallet credit command publish failed for eventId={}", eventId, ex);
+		paymentOutboxStateService.recordFailedAttempt(claimedEventId, safeError(ex.getMessage()), true);
 	}
 
 	private String idempotencyKey(UUID eventId) {

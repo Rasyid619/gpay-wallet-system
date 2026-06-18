@@ -185,6 +185,7 @@ Wallet Service:
 WALLET_DB_USERNAME
 WALLET_DB_PASSWORD
 JWT_SECRET
+KAFKA_BOOTSTRAP_SERVERS
 WALLET_INTERNAL_TOKEN
 MAX_DAILY_TRANSFER_AMOUNT
 ```
@@ -196,12 +197,11 @@ PAYMENT_DB_USERNAME
 PAYMENT_DB_PASSWORD
 REDIS_HOST
 REDIS_PORT
+KAFKA_BOOTSTRAP_SERVERS
 JWT_SECRET
 PAYMENT_TOPUP_RATE_LIMIT_PER_MINUTE
 PAYMENT_GATEWAY_TIMEOUT_MS
 PAYMENT_GATEWAY_WEBHOOK_SECRET
-PAYMENT_WALLET_INTERNAL_TOKEN
-PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS
 PAYMENT_OUTBOX_RETRY_DELAY_MS
 PAYMENT_OUTBOX_MAX_ATTEMPTS
 PAYMENT_OUTBOX_MAX_AGE_MS
@@ -223,14 +223,17 @@ Compose wires these service URLs directly:
 ```text
 PAYMENT_GATEWAY_TOP_UP_URL=http://mock-gateway-service:8084/mock-gateway/top-up
 AUTH_WALLET_PROVISION_URL=http://wallet-service:8082/internal/wallets/provision
-PAYMENT_WALLET_CREDIT_URL=http://wallet-service:8082/internal/wallets/credit
 PAYMENT_WEBHOOK_URL=http://payment-service:8083/payments/webhook/gateway
 ```
+
+The payment-to-wallet top-up credit is delivered asynchronously over Kafka
+(`wallet.credit.commands`), so both services need `KAFKA_BOOTSTRAP_SERVERS`. See
+`docs/event-contracts.md` for the event contract and delivery design.
 
 Secret alignment required for local workflows:
 
 - `JWT_SECRET` must be the same for Auth, Wallet, and Payment services.
-- `WALLET_INTERNAL_TOKEN` must match `AUTH_WALLET_INTERNAL_TOKEN` and `PAYMENT_WALLET_INTERNAL_TOKEN`.
+- `WALLET_INTERNAL_TOKEN` must match `AUTH_WALLET_INTERNAL_TOKEN`.
 - `GATEWAY_WEBHOOK_SECRET` must match `PAYMENT_GATEWAY_WEBHOOK_SECRET`.
 
 ## Running A Single Service From The Host
@@ -238,10 +241,10 @@ Secret alignment required for local workflows:
 The repository is a single root Gradle multi-module build, so run Gradle from the
 repository root and target a module with `:<service>:<task>`.
 
-Start PostgreSQL and Redis first:
+Start PostgreSQL, Redis, and Kafka first:
 
 ```bash
-docker compose up -d postgres redis
+docker compose up -d postgres redis kafka
 ```
 
 Auth Service:
@@ -256,7 +259,9 @@ AUTH_WALLET_PROVISION_TIMEOUT_MS=5000 \
 Wallet Service:
 
 ```bash
-WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token ./gradlew :wallet-service:bootRun
+WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token \
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
+./gradlew :wallet-service:bootRun
 ```
 
 Payment Service:
@@ -265,9 +270,7 @@ Payment Service:
 PAYMENT_GATEWAY_TOP_UP_URL=http://localhost:8084/mock-gateway/top-up \
 PAYMENT_GATEWAY_TIMEOUT_MS=5000 \
 PAYMENT_GATEWAY_WEBHOOK_SECRET=change-this-gateway-secret \
-PAYMENT_WALLET_CREDIT_URL=http://localhost:8082/internal/wallets/credit \
-PAYMENT_WALLET_INTERNAL_TOKEN=change-this-wallet-internal-token \
-PAYMENT_OUTBOX_REQUEST_TIMEOUT_MS=5000 \
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
 PAYMENT_OUTBOX_RETRY_DELAY_MS=60000 \
 PAYMENT_OUTBOX_MAX_ATTEMPTS=5 \
 PAYMENT_OUTBOX_MAX_AGE_MS=86400000 \
