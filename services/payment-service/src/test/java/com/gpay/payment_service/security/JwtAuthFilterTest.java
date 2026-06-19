@@ -35,14 +35,21 @@ class JwtAuthFilterTest {
 	}
 
 	private String validToken(UUID userId) {
+		return tokenWithRole(userId, null);
+	}
+
+	private String tokenWithRole(UUID userId, String role) {
 		SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
 		Instant now = Instant.now();
-		return Jwts.builder()
+		var builder = Jwts.builder()
 				.subject(userId.toString())
 				.issuedAt(Date.from(now))
-				.expiration(Date.from(now.plusSeconds(900)))
-				.signWith(key)
-				.compact();
+				.expiration(Date.from(now.plusSeconds(900)));
+		if (role != null) {
+			builder.claim("role", role);
+		}
+
+		return builder.signWith(key).compact();
 	}
 
 	@Test
@@ -69,6 +76,54 @@ class JwtAuthFilterTest {
 		filter.doFilter(request, response, chain);
 
 		assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).isEqualTo(userId);
+		verify(chain).doFilter(request, response);
+	}
+
+	@Test
+	void grantsAdminAuthorityWhenRoleClaimIsAdmin() throws Exception {
+		UUID userId = UUID.randomUUID();
+		MockHttpServletRequest request = new MockHttpServletRequest();
+		request.addHeader("Authorization", "Bearer " + tokenWithRole(userId, "ADMIN"));
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		FilterChain chain = mock(FilterChain.class);
+
+		filter.doFilter(request, response, chain);
+
+		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+				.extracting("authority")
+				.containsExactly("ROLE_ADMIN");
+		verify(chain).doFilter(request, response);
+	}
+
+	@Test
+	void grantsUserAuthorityWhenRoleClaimIsUser() throws Exception {
+		UUID userId = UUID.randomUUID();
+		MockHttpServletRequest request = new MockHttpServletRequest();
+		request.addHeader("Authorization", "Bearer " + tokenWithRole(userId, "USER"));
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		FilterChain chain = mock(FilterChain.class);
+
+		filter.doFilter(request, response, chain);
+
+		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+				.extracting("authority")
+				.containsExactly("ROLE_USER");
+		verify(chain).doFilter(request, response);
+	}
+
+	@Test
+	void defaultsToUserAuthorityWhenRoleClaimIsAbsent() throws Exception {
+		UUID userId = UUID.randomUUID();
+		MockHttpServletRequest request = new MockHttpServletRequest();
+		request.addHeader("Authorization", "Bearer " + validToken(userId));
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		FilterChain chain = mock(FilterChain.class);
+
+		filter.doFilter(request, response, chain);
+
+		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+				.extracting("authority")
+				.containsExactly("ROLE_USER");
 		verify(chain).doFilter(request, response);
 	}
 

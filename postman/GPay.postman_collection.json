@@ -32,6 +32,11 @@
       "type": "string"
     },
     {
+      "key": "admin_access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "refresh_token",
       "value": "",
       "type": "string"
@@ -2848,6 +2853,123 @@
               "raw": "{\n  \"wallet_id\": \"{{topup_wallet_id}}\",\n  \"amount\": 75000,\n  \"gateway_mode\": \"SUCCESS\"\n}"
             },
             "description": "Expected when Redis is unavailable and Payment Service fails closed for top-up requests."
+          }
+        },
+        {
+          "name": "Admin Get Payment — Any Owner (expect 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns payment shape', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.payment_transaction_id).to.be.a('string');",
+                  "  pm.expect(body.wallet_id).to.be.a('string');",
+                  "  pm.expect(body.amount).to.be.a('number');",
+                  "  pm.expect(body.status).to.be.a('string');",
+                  "  pm.expect(body.created_at).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/admin/payments/{{payment_transaction_id}}",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "admin",
+                "payments",
+                "{{payment_transaction_id}}"
+              ]
+            },
+            "description": "Admin/support lookup of any payment by id, regardless of owner. Requires an ADMIN-role access token in `admin_access_token` (set ADMIN role directly in the auth-service database, then log in to obtain the token)."
+          }
+        },
+        {
+          "name": "Admin Get Payment — Non-Admin (expect 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Forbidden error shape', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.trace_id).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/admin/payments/{{payment_transaction_id}}",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "admin",
+                "payments",
+                "{{payment_transaction_id}}"
+              ]
+            },
+            "description": "Expected: 403 Forbidden. An authenticated USER-role token may not access admin payment lookup; only ADMIN-role tokens are allowed."
+          }
+        },
+        {
+          "name": "Admin Get Payment — No Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Unauthorized error shape', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('UNAUTHORIZED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_url}}/admin/payments/{{payment_transaction_id}}",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "admin",
+                "payments",
+                "{{payment_transaction_id}}"
+              ]
+            },
+            "description": "Expected: 401 Unauthorized when no Bearer token is supplied to the admin payment lookup."
           }
         }
       ]
