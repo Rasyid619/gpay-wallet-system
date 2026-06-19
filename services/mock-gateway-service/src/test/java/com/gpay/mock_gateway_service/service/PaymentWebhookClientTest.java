@@ -1,6 +1,7 @@
 package com.gpay.mock_gateway_service.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,6 +64,45 @@ class PaymentWebhookClientTest {
 		assertThat(signature).isEqualTo(signatureService.sign(timestamp, capturedRequest.body()));
 	}
 
+	@Test
+	void throwsWhenPaymentWebhookUrlIsNotConfigured() {
+		MockGatewayProperties properties = new MockGatewayProperties();
+		properties.setWebhookSecret("webhook-secret");
+		PaymentWebhookClient client = new PaymentWebhookClient(
+				WebClient.builder(),
+				objectMapper,
+				properties,
+				new GatewaySignatureService(properties));
+
+		assertThatThrownBy(() -> client.send(
+						new GatewayWebhookPayload(UUID.randomUUID(), UUID.randomUUID(), 75000L, "SUCCESS", "gw-reference"),
+						"trace-callback"))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("PAYMENT_WEBHOOK_URL");
+	}
+
+	@Test
+	void omitsTraceIdHeaderWhenTraceIdIsBlank() throws Exception {
+		CapturedRequest capturedRequest = startServer();
+		MockGatewayProperties properties = new MockGatewayProperties();
+		properties.setWebhookSecret("webhook-secret");
+		properties.setPaymentWebhookUrl(URI.create("http://localhost:" + server.getAddress().getPort() + "/payments/webhook/gateway"));
+		PaymentWebhookClient client = new PaymentWebhookClient(
+				WebClient.builder(),
+				objectMapper,
+				properties,
+				new GatewaySignatureService(properties));
+
+		client.send(new GatewayWebhookPayload(
+				UUID.randomUUID(),
+				UUID.randomUUID(),
+				75000L,
+				"SUCCESS",
+				"gw-reference"), "   ");
+
+		assertThat(capturedRequest.traceIdHeaders()).isNull();
+	}
+
 	private CapturedRequest startServer() throws IOException {
 		CapturedRequest capturedRequest = new CapturedRequest();
 		server = HttpServer.create(new InetSocketAddress(0), 0);
@@ -86,6 +126,10 @@ class PaymentWebhookClientTest {
 
 		private String body() {
 			return body;
+		}
+
+		private List<String> traceIdHeaders() {
+			return traceId;
 		}
 
 		private String firstHeader(String headerName) {
