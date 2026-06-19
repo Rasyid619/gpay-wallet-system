@@ -111,6 +111,27 @@ class PaymentOutboxWorkerBranchTest {
 	}
 
 	@Test
+	void normalizesNullFailureMessageOnPublishError() throws Exception {
+		OutboxEvent event = pendingEvent();
+		ClaimedOutboxEvent claimed = new ClaimedOutboxEvent(
+				event.getId(),
+				new WalletCreditOutboxPayload(UUID.randomUUID(), event.getAggregateId(), 75_000L),
+				"trace");
+		stubDueEvent(event);
+		when(paymentOutboxStateService.claim(event.getId())).thenReturn(claimed);
+		doThrow(new RuntimeException((String) null))
+				.when(walletCreditCommandPublisher)
+				.publish(any(WalletCreditOutboxPayload.class), any(String.class), any(String.class));
+
+		worker().processPendingWalletCredits();
+
+		verify(paymentOutboxStateService).recordFailedAttempt(
+				eq(event.getId()),
+				eq("Wallet credit delivery failed"),
+				eq(true));
+	}
+
+	@Test
 	void truncatesLongFailureMessageOnPublishError() throws Exception {
 		OutboxEvent event = pendingEvent();
 		ClaimedOutboxEvent claimed = new ClaimedOutboxEvent(

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Isolated unit tests for the FAILED state transitions of the payment outbox,
@@ -136,6 +137,31 @@ class PaymentOutboxStateServiceTest {
 	}
 
 	@Test
+	void claimProceedsWhenPendingEventHasNoScheduledRetry() throws Exception {
+		PaymentOutboxStateService service = newService(outboxProperties(10, 60_000L));
+		UUID aggregateId = UUID.randomUUID();
+		OutboxEvent event = OutboxEvent.createPending(
+				UUID.randomUUID(),
+				OutboxEventType.CREDIT_WALLET_REQUESTED,
+				aggregateId,
+				"{}",
+				Instant.now().minusSeconds(1));
+		// A PENDING event always carries a scheduled retry in normal flow; force the defensive
+		// null-retry state to verify the guard treats it as immediately claimable.
+		ReflectionTestUtils.setField(event, "nextRetryAt", null);
+		WalletCreditOutboxPayload payload = new WalletCreditOutboxPayload(UUID.randomUUID(), aggregateId, 75_000L);
+		when(outboxEventRepository.findLockedById(event.getId())).thenReturn(Optional.of(event));
+		when(objectMapper.readValue("{}", WalletCreditOutboxPayload.class)).thenReturn(payload);
+		when(topupTransactionRepository.findById(aggregateId)).thenReturn(Optional.empty());
+
+		ClaimedOutboxEvent claimed = service.claim(event.getId());
+
+		assertThat(claimed).isNotNull();
+		assertThat(claimed.traceId()).isNull();
+		assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PROCESSING);
+	}
+
+	@Test
 	void recoverStaleProcessingIgnoresEventThatIsNoLongerStale() {
 		PaymentOutboxStateService service = newService(outboxProperties(10, 60_000L));
 		OutboxEvent event = pendingEvent(Instant.now());
@@ -158,6 +184,33 @@ class PaymentOutboxStateServiceTest {
 
 		assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
 		assertThat(event.getRetryCount()).isEqualTo(1);
+	}
+
+	@Test
+	void recoverStaleProcessingIgnoresEventThatIsNotProcessing() {
+		PaymentOutboxStateService service = newService(outboxProperties(10, 60_000L));
+		OutboxEvent event = pendingEvent(Instant.now());
+		when(outboxEventRepository.findLockedById(event.getId())).thenReturn(Optional.of(event));
+
+		service.recoverStaleProcessing(event.getId(), Instant.now());
+
+		assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+	}
+
+	@Test
+	void recoverStaleProcessingMarksFailedWhenAttemptBudgetExhausted() {
+		PaymentOutboxStateService service = newService(outboxProperties(3, 86_400_000L));
+		OutboxEvent event = pendingEvent(Instant.now());
+		Instant past = Instant.now().minusSeconds(1);
+		event.markFailedAttempt("attempt-1", past, past);
+		event.markFailedAttempt("attempt-2", past, past);
+		event.markProcessing(Instant.now().minus(Duration.ofMinutes(20)));
+		when(outboxEventRepository.findLockedById(event.getId())).thenReturn(Optional.of(event));
+
+		service.recoverStaleProcessing(event.getId(), Instant.now().minus(Duration.ofMinutes(10)));
+
+		assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.FAILED);
+		assertThat(event.getRetryCount()).isEqualTo(3);
 	}
 
 	@Test

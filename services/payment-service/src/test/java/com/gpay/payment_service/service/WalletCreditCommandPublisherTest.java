@@ -80,4 +80,13 @@ class WalletCreditCommandPublisherTest {
 
 		assertThat(MDC.get(TraceIdContext.TRACE_ID_KEY)).isEqualTo("trace-existing");
 	}
+
+	@Test
+	void doesNotSetTraceIdWhenTraceIdArgumentIsNull() throws Exception {
+		stubSuccessfulSend();
+
+		publisher.publish(payload(), "idempotency-key", null);
+
+		assertThat(MDC.get(TraceIdContext.TRACE_ID_KEY)).isNull();
+	}
 }
