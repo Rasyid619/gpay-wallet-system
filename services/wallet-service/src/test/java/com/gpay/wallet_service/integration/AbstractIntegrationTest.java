@@ -1,5 +1,6 @@
 package com.gpay.wallet_service.integration;
 
+import com.gpay.wallet_service.support.WalletPostgresContainer;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
@@ -14,15 +15,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
 
 /*
  * Shared PostgreSQL Testcontainers base for Wallet Service integration tests that exercise
  * real HTTP, persistence, locking, and Flyway-migrated schema behavior.
  *
- * A single container is started once and reused across all subclasses in the same JVM.
- * Flyway runs the wallet_db migrations against the container on context start. Shared
- * cleanup removes data in foreign-key-safe order before each test. Kafka listener
+ * The container is provided by WalletPostgresContainer and reused across all subclasses in
+ * the same JVM. Flyway runs the wallet_db migrations against the container on context start.
+ * Shared cleanup removes data in foreign-key-safe order before each test. Kafka listener
  * auto-startup is disabled so the context boots without a running broker.
  */
 @SpringBootTest
@@ -33,21 +33,12 @@ public abstract class AbstractIntegrationTest {
 	protected static final String INTERNAL_TOKEN = "integration-test-internal-token";
 	protected static final long MAX_DAILY_TRANSFER_AMOUNT = 100_000L;
 
-	static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
-
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
-	static {
-		POSTGRES.start();
-	}
-
 	@DynamicPropertySource
 	static void configure(DynamicPropertyRegistry registry) {
-		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-		registry.add("spring.datasource.username", POSTGRES::getUsername);
-		registry.add("spring.datasource.password", POSTGRES::getPassword);
-		registry.add("spring.kafka.listener.auto-startup", () -> "false");
+		WalletPostgresContainer.registerProperties(registry);
 		registry.add("jwt.secret", () -> JWT_SECRET);
 		registry.add("wallet.internal-token", () -> INTERNAL_TOKEN);
 		registry.add("wallet.transfer.max-daily-transfer-amount", () -> String.valueOf(MAX_DAILY_TRANSFER_AMOUNT));

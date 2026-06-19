@@ -18,17 +18,25 @@ import com.gpay.wallet_service.repository.ActivityLogRepository;
 import com.gpay.wallet_service.repository.IdempotencyKeyRepository;
 import com.gpay.wallet_service.repository.LedgerEntryRepository;
 import com.gpay.wallet_service.repository.WalletRepository;
+import com.gpay.wallet_service.support.WalletPostgresContainer;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Integration tests for internal wallet credit behavior.
  */
 @SpringBootTest(properties = "wallet.internal-token=internal-test-token")
 class InternalWalletCreditServiceTest {
+
+	@DynamicPropertySource
+	static void datasource(DynamicPropertyRegistry registry) {
+		WalletPostgresContainer.registerProperties(registry);
+	}
 
 	@Autowired
 	private ActivityLogRepository activityLogRepository;
