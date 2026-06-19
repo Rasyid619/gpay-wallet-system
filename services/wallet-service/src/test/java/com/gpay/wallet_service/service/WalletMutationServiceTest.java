@@ -104,6 +104,20 @@ class WalletMutationServiceTest {
 		}
 
 		@Test
+		void defaultsToTwentyWhenRequestedSizeIsBelowOne() {
+			UUID userId = UUID.randomUUID();
+			ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+			when(ledgerEntryRepository.findByWalletUserId(
+					org.mockito.ArgumentMatchers.eq(userId),
+					pageableCaptor.capture()))
+					.thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+			walletMutationService.getMutations(userId, new ZeroSizePageable());
+
+			assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(20);
+		}
+
+		@Test
 		void capsPageSizeToOneHundred() {
 			UUID userId = UUID.randomUUID();
 			ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
@@ -115,6 +129,55 @@ class WalletMutationServiceTest {
 			walletMutationService.getMutations(userId, PageRequest.of(0, 500));
 
 			assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(100);
+		}
+	}
+
+	/* Pageable reporting page 0 and an out-of-range size of 0 to exercise the size floor. */
+	private static final class ZeroSizePageable implements Pageable {
+
+		@Override
+		public int getPageNumber() {
+			return 0;
+		}
+
+		@Override
+		public int getPageSize() {
+			return 0;
+		}
+
+		@Override
+		public long getOffset() {
+			return 0;
+		}
+
+		@Override
+		public Sort getSort() {
+			return Sort.unsorted();
+		}
+
+		@Override
+		public Pageable next() {
+			return this;
+		}
+
+		@Override
+		public Pageable previousOrFirst() {
+			return this;
+		}
+
+		@Override
+		public Pageable first() {
+			return this;
+		}
+
+		@Override
+		public Pageable withPage(int pageNumber) {
+			return this;
+		}
+
+		@Override
+		public boolean hasPrevious() {
+			return false;
 		}
 	}
 }

@@ -10,6 +10,7 @@ import com.gpay.wallet_service.dto.InternalWalletCreditRequest;
 import com.gpay.wallet_service.dto.InternalWalletCreditResponse;
 import com.gpay.wallet_service.entity.LedgerEntry;
 import com.gpay.wallet_service.entity.Wallet;
+import com.gpay.wallet_service.exception.BadRequestException;
 import com.gpay.wallet_service.exception.IdempotencyConflictException;
 import com.gpay.wallet_service.exception.InternalAuthenticationException;
 import com.gpay.wallet_service.exception.PaymentTransactionConflictException;
@@ -17,17 +18,25 @@ import com.gpay.wallet_service.repository.ActivityLogRepository;
 import com.gpay.wallet_service.repository.IdempotencyKeyRepository;
 import com.gpay.wallet_service.repository.LedgerEntryRepository;
 import com.gpay.wallet_service.repository.WalletRepository;
+import com.gpay.wallet_service.support.WalletPostgresContainer;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Integration tests for internal wallet credit behavior.
  */
 @SpringBootTest(properties = "wallet.internal-token=internal-test-token")
 class InternalWalletCreditServiceTest {
+
+	@DynamicPropertySource
+	static void datasource(DynamicPropertyRegistry registry) {
+		WalletPostgresContainer.registerProperties(registry);
+	}
 
 	@Autowired
 	private ActivityLogRepository activityLogRepository;
@@ -157,6 +166,20 @@ class InternalWalletCreditServiceTest {
 				"trace-conflict"))
 				.isInstanceOf(PaymentTransactionConflictException.class);
 		assertThat(walletRepository.findById(wallet.getId()).orElseThrow().getBalance()).isEqualTo(150000L);
+	}
+
+	@Test
+	void rejectsCreditWhenIdempotencyKeyIsNull() {
+		Wallet wallet = saveWallet(100000L);
+
+		assertThatThrownBy(() -> internalWalletCreditService.credit(
+				"internal-test-token",
+				null,
+				new InternalWalletCreditRequest(wallet.getId(), UUID.randomUUID(), 50000L),
+				"trace-null-key"))
+				.isInstanceOf(BadRequestException.class);
+
+		assertThat(walletRepository.findById(wallet.getId()).orElseThrow().getBalance()).isEqualTo(100000L);
 	}
 
 	@Test

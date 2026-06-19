@@ -9,9 +9,11 @@ import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.TransferRequest;
 import com.gpay.wallet_service.dto.TransferResponse;
 import com.gpay.wallet_service.entity.Wallet;
+import com.gpay.wallet_service.exception.BadRequestException;
 import com.gpay.wallet_service.exception.IdempotencyConflictException;
 import com.gpay.wallet_service.repository.LedgerEntryRepository;
 import com.gpay.wallet_service.repository.WalletRepository;
+import com.gpay.wallet_service.support.WalletPostgresContainer;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -24,12 +26,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Integration tests for atomic wallet transfer behavior.
  */
 @SpringBootTest(properties = "wallet.transfer.max-daily-transfer-amount=100")
 class WalletTransferServiceTest {
+
+	@DynamicPropertySource
+	static void datasource(DynamicPropertyRegistry registry) {
+		WalletPostgresContainer.registerProperties(registry);
+	}
 
 	@Autowired
 	private LedgerEntryRepository ledgerEntryRepository;
@@ -69,6 +78,18 @@ class WalletTransferServiceTest {
 				receiverWallet.getUserId(),
 				PageRequest.of(0, 20, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))))
 				.getTotalElements()).isEqualTo(1);
+	}
+
+	@Test
+	void rejectsTransferWhenIdempotencyKeyIsNull() {
+		UUID senderUserId = UUID.randomUUID();
+
+		assertThatThrownBy(() -> walletTransferService.transfer(
+				senderUserId,
+				null,
+				new TransferRequest(UUID.randomUUID(), 40L),
+				"trace-null-key"))
+				.isInstanceOf(BadRequestException.class);
 	}
 
 	@Test

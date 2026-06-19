@@ -7,16 +7,24 @@ import com.gpay.wallet_service.dto.InternalWalletProvisionRequest;
 import com.gpay.wallet_service.dto.InternalWalletProvisionResponse;
 import com.gpay.wallet_service.exception.InternalAuthenticationException;
 import com.gpay.wallet_service.repository.WalletRepository;
+import com.gpay.wallet_service.support.WalletPostgresContainer;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Integration tests for internal wallet provisioning behavior.
  */
 @SpringBootTest(properties = "wallet.internal-token=internal-test-token")
 class InternalWalletProvisionServiceTest {
+
+	@DynamicPropertySource
+	static void datasource(DynamicPropertyRegistry registry) {
+		WalletPostgresContainer.registerProperties(registry);
+	}
 
 	@Autowired
 	private InternalWalletProvisionService internalWalletProvisionService;
