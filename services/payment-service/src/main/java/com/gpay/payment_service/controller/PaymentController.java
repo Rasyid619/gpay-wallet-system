@@ -4,6 +4,7 @@ import com.gpay.common.tracing.TraceIdContext;
 import com.gpay.payment_service.dto.IdempotentResponse;
 import com.gpay.payment_service.dto.GatewayWebhookResponse;
 import com.gpay.payment_service.dto.TopUpRequest;
+import com.gpay.payment_service.dto.TopUpResponse;
 import com.gpay.payment_service.service.PaymentTopUpService;
 import com.gpay.payment_service.service.PaymentWebhookService;
 import jakarta.validation.Valid;
@@ -11,6 +12,8 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -37,6 +40,13 @@ public class PaymentController {
 				request,
 				TraceIdContext.getTraceId());
 		return ResponseEntity.status(response.status()).body(response.body());
+	}
+
+	@GetMapping("/{id}")
+	public ResponseEntity<TopUpResponse> getPayment(
+			@AuthenticationPrincipal UUID userId,
+			@PathVariable UUID id) {
+		return ResponseEntity.ok(paymentTopUpService.fetchPaymentForUser(userId, id));
 	}
 
 	@PostMapping("/webhook/gateway")

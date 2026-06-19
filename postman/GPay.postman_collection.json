@@ -579,6 +579,45 @@
           }
         },
         {
+          "name": "07B Get Payment By Id For User A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Returns the requested payment', () => pm.expect(body.payment_transaction_id).to.eql(pm.collectionVariables.get('payment_transaction_id')));",
+                  "pm.test('Belongs to the top-up wallet', () => pm.expect(body.wallet_id).to.eql(pm.collectionVariables.get('topup_wallet_id')));",
+                  "pm.test('Amount matches the top-up', () => pm.expect(body.amount).to.eql(100000));",
+                  "pm.test('Status is a valid payment status', () => pm.expect(['PENDING', 'SUCCESS', 'FAILED']).to.include(body.status));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{payment_url}}/payments/{{payment_transaction_id}}",
+              "host": [
+                "{{payment_url}}"
+              ],
+              "path": [
+                "payments",
+                "{{payment_transaction_id}}"
+              ]
+            },
+            "description": "Fetch the user's own top-up payment by id. A payment that does not exist or belongs to another user returns 404."
+          }
+        },
+        {
           "name": "08 Check User A Balance After Top-Up",
           "event": [
             {
