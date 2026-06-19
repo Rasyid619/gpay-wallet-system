@@ -44,7 +44,6 @@ GET  /wallets/balance
 GET  /wallets/mutations?page=0&size=20
 POST /wallets/transfer
 POST /internal/wallets/provision
-POST /internal/wallets/credit
 ```
 
 Payment Service:
@@ -130,7 +129,6 @@ Inside Docker Compose, services use Docker network names:
 ```text
 payment-service -> http://mock-gateway-service:8084/mock-gateway/top-up
 auth-service -> http://wallet-service:8082/internal/wallets/provision
-payment-service -> http://wallet-service:8082/internal/wallets/credit
 mock-gateway-service -> http://payment-service:8083/payments/webhook/gateway
 payment-service -> redis:6379
 ```

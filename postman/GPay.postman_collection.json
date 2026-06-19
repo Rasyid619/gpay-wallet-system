@@ -52,11 +52,6 @@
       "type": "string"
     },
     {
-      "key": "credit_wallet_id",
-      "value": "",
-      "type": "string"
-    },
-    {
       "key": "payment_transaction_id",
       "value": "",
       "type": "string"
@@ -73,16 +68,6 @@
     },
     {
       "key": "transfer_invalid_token_idempotency_key",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "credit_idempotency_key",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "credit_invalid_token_idempotency_key",
       "value": "",
       "type": "string"
     },
@@ -250,8 +235,6 @@
           "const idempotencyDefaults = {",
           "  transfer_idempotency_key: 'transfer',",
           "  transfer_invalid_token_idempotency_key: 'transfer-invalid-token',",
-          "  credit_idempotency_key: 'credit',",
-          "  credit_invalid_token_idempotency_key: 'credit-invalid-token',",
           "  topup_idempotency_key: 'topup',",
           "  topup_invalid_token_idempotency_key: 'topup-invalid-token',",
           "  topup_timeout_idempotency_key: 'topup-timeout',",
@@ -2336,159 +2319,6 @@
               "raw": "{\n  \"user_id\": \"{{provision_user_id}}\"\n}"
             },
             "description": "Internal auth-service wallet provisioning endpoint. Registration calls this automatically. Set internal_token from WALLET_INTERNAL_TOKEN and provision_user_id to an auth-service user_id before running manually."
-          }
-        },
-        {
-          "name": "Internal Credit Wallet",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response has credit details', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.wallet_id).to.be.a('string');",
-                  "  pm.expect(body.payment_transaction_id).to.be.a('string');",
-                  "  pm.expect(body.amount).to.be.a('number');",
-                  "  pm.expect(body.balance_after).to.be.a('number');",
-                  "  pm.expect(body.credited_at).to.be.a('string');",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-Internal-Token",
-                "value": "{{internal_token}}"
-              },
-              {
-                "key": "Idempotency-Key",
-                "value": "{{credit_idempotency_key}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{wallet_url}}/internal/wallets/credit",
-              "host": [
-                "{{wallet_url}}"
-              ],
-              "path": [
-                "internal",
-                "wallets",
-                "credit"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"wallet_id\": \"{{credit_wallet_id}}\",\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"amount\": 50000\n}"
-            },
-            "description": "Internal payment-service outbox delivery endpoint. Set internal_token from WALLET_INTERNAL_TOKEN before running."
-          }
-        },
-        {
-          "name": "Internal Credit Wallet — Invalid Token (expect 401)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
-                  "pm.test('Error code is UNAUTHORIZED', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.error).to.eql('UNAUTHORIZED');",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-Internal-Token",
-                "value": "invalid-internal-token"
-              },
-              {
-                "key": "Idempotency-Key",
-                "value": "{{credit_invalid_token_idempotency_key}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{wallet_url}}/internal/wallets/credit",
-              "host": [
-                "{{wallet_url}}"
-              ],
-              "path": [
-                "internal",
-                "wallets",
-                "credit"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"wallet_id\": \"{{credit_wallet_id}}\",\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"amount\": 50000\n}"
-            },
-            "description": "Expected: 401 Unauthorized when X-Internal-Token does not match WALLET_INTERNAL_TOKEN."
-          }
-        },
-        {
-          "name": "Internal Credit Wallet — No Idempotency Key (expect 400)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
-                  "pm.test('Error code is VALIDATION_ERROR', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.error).to.eql('VALIDATION_ERROR');",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-Internal-Token",
-                "value": "{{internal_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{wallet_url}}/internal/wallets/credit",
-              "host": [
-                "{{wallet_url}}"
-              ],
-              "path": [
-                "internal",
-                "wallets",
-                "credit"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"wallet_id\": \"{{credit_wallet_id}}\",\n  \"payment_transaction_id\": \"{{payment_transaction_id}}\",\n  \"amount\": 50000\n}"
-            },
-            "description": "Expected: 400 Bad Request when Idempotency-Key header is missing."
           }
         }
       ]

@@ -169,8 +169,10 @@ Wallet Service is responsible for wallet balance and money movement.
 GET  /wallets/balance
 GET  /wallets/mutations?page=0&size=20
 POST /wallets/transfer
-POST /internal/wallets/credit
 ```
+
+Internal wallet credit from Payment Service is delivered over Kafka (consumed by
+`WalletCreditCommandConsumer`), not as an HTTP endpoint.
 
 ### Rules
 
@@ -478,8 +480,10 @@ Apply idempotency to:
 ```txt
 POST /wallets/transfer
 POST /payments/top-up
-POST /internal/wallets/credit
 ```
+
+Wallet credit applies the same idempotency keys, carried on the Kafka
+wallet-credit command rather than an HTTP header.
 
 ## Behavior
 
@@ -1040,16 +1044,16 @@ Outbox worker retries wallet credit
 
 ## Milestone 13 — Wallet Internal Credit
 
-Endpoint:
+Delivery:
 
 ```txt
-POST /internal/wallets/credit
+Kafka wallet-credit command (consumed by WalletCreditCommandConsumer)
 ```
 
 Acceptance criteria:
 
 ```txt
-Called by Payment Service
+Published by Payment Service
 Credits wallet
 Creates ledger entry
 Is idempotent by transactionId

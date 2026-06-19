@@ -31,7 +31,7 @@ public class SecurityConfig {
 				.exceptionHandling(ex -> ex
 						.authenticationEntryPoint(authenticationEntryPoint))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/internal/wallets/credit", "/internal/wallets/provision").permitAll()
+						.requestMatchers("/internal/wallets/provision").permitAll()
 						.anyRequest().authenticated())
 				.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 		return http.build();
