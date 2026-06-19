@@ -308,6 +308,46 @@ Or run the whole build (all modules) at once:
 ./gradlew test
 ```
 
+### Test Strategy
+
+Each module ships two layers of automated tests:
+
+- **Unit tests** with JUnit 5 and Mockito, mocking only the boundaries outside
+  the unit under test (services, clients, signature helpers).
+- **Integration tests** with Spring Boot (`@SpringBootTest` + `MockMvc`) that
+  drive the real controller -> service -> repository (or webhook client) flow.
+
+The database-owning services run their integration tests against a real
+PostgreSQL container started with Testcontainers, with Flyway migrations applied
+automatically — no manually running Docker Compose is required. Payment Service
+additionally covers Redis-backed top-up rate limiting. Mock Gateway owns no
+database, so its integration tests drive the controller -> service ->
+`PaymentWebhookClient` flow against a local stub HTTP server, verifying the
+webhook payload shape, HMAC-SHA256 signature, and `X-Trace-Id` propagation.
+
+Integration coverage by service:
+
+```text
+auth-service         register, login, refresh, me
+wallet-service       balance, mutations, transfer, internal credit, internal provision
+payment-service      top-up, gateway webhook, rate limiting   (PostgreSQL + Redis)
+mock-gateway-service top-up across SUCCESS, FAILED, and TIMEOUT modes
+```
+
+### Coverage Gates
+
+JaCoCo branch coverage is reported per module and enforced by the build
+(`jacocoTestCoverageVerification` runs as part of `build`). A module fails its
+build when branch coverage falls below its threshold:
+
+```text
+auth-service           95%
+wallet-service         95%
+payment-service        95%
+mock-gateway-service   95%
+common (shared lib)    60%
+```
+
 ## Postman Usage
 
 Import:
