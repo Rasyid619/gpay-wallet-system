@@ -114,7 +114,7 @@ public class AuthService {
 			throw new UnauthorizedException("Invalid credentials");
 		}
 
-		String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail());
+		String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
 		String rawRefreshToken = generateRawRefreshToken();
 		String tokenHash = HashUtil.sha256(rawRefreshToken);
 
@@ -161,7 +161,7 @@ public class AuthService {
 
 		// Issue new token pair
 		User user = stored.getUser();
-		String newAccessToken = jwtService.generateAccessToken(user.getId(), user.getEmail());
+		String newAccessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
 		String newRawRefreshToken = generateRawRefreshToken();
 		String newTokenHash = HashUtil.sha256(newRawRefreshToken);
 

@@ -144,7 +144,8 @@ class AuthServiceTest {
 
 			when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
 			when(passwordEncoder.matches("secret", "$2a$hashed")).thenReturn(true);
-			when(jwtService.generateAccessToken(userId, "user@example.com")).thenReturn("access.token.jwt");
+			when(jwtService.generateAccessToken(userId, "user@example.com", UserRole.USER))
+					.thenReturn("access.token.jwt");
 			when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
 
 			LoginResponse response = authService.login(new LoginRequest("user@example.com", "secret"));
@@ -187,7 +188,7 @@ class AuthServiceTest {
 
 			when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
 			when(passwordEncoder.matches("secret", "$2a$hashed")).thenReturn(true);
-			when(jwtService.generateAccessToken(any(), any())).thenReturn("access.token.jwt");
+			when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("access.token.jwt");
 			ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
 			when(refreshTokenRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -219,7 +220,8 @@ class AuthServiceTest {
 			RefreshToken stored = RefreshToken.create(UUID.randomUUID(), user, tokenHash, expiresAt, Instant.now());
 
 			when(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.of(stored));
-			when(jwtService.generateAccessToken(userId, "user@example.com")).thenReturn("new.access.token");
+			when(jwtService.generateAccessToken(userId, "user@example.com", UserRole.USER))
+					.thenReturn("new.access.token");
 			when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
 
 			LoginResponse response = authService.refresh(new RefreshRequest(rawToken));
@@ -276,7 +278,7 @@ class AuthServiceTest {
 					Instant.now().plus(7, ChronoUnit.DAYS), Instant.now());
 
 			when(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.of(stored));
-			when(jwtService.generateAccessToken(any(), any())).thenReturn("new.access.token");
+			when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("new.access.token");
 			when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
 
 			authService.refresh(new RefreshRequest(rawToken));

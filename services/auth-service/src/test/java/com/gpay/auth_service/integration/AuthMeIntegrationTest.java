@@ -46,7 +46,7 @@ class AuthMeIntegrationTest extends AbstractIntegrationTest {
 
 	@Test
 	void meReturnsAuthenticatedUser() throws Exception {
-		String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail());
+		String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), UserRole.USER);
 
 		mockMvc.perform(get("/auth/me")
 						.header("Authorization", "Bearer " + accessToken))
@@ -78,7 +78,7 @@ class AuthMeIntegrationTest extends AbstractIntegrationTest {
 
 	@Test
 	void meReturnsNotFoundWhenAuthenticatedUserNoLongerExists() throws Exception {
-		String accessToken = jwtService.generateAccessToken(UUID.randomUUID(), "ghost@example.com");
+		String accessToken = jwtService.generateAccessToken(UUID.randomUUID(), "ghost@example.com", UserRole.USER);
 
 		mockMvc.perform(get("/auth/me")
 						.header("Authorization", "Bearer " + accessToken))

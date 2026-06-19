@@ -1,5 +1,6 @@
 package com.gpay.auth_service.security;
 
+import com.gpay.auth_service.entity.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -29,14 +30,16 @@ public class JwtService {
 	 *
 	 * @param userId user identifier embedded as the token subject
 	 * @param email  user email embedded as a claim
+	 * @param role   user role embedded as the {@code role} claim for downstream RBAC
 	 * @return compact signed JWT string
 	 */
-	public String generateAccessToken(UUID userId, String email) {
+	public String generateAccessToken(UUID userId, String email, UserRole role) {
 		Date now = new Date();
 		Date expiry = new Date(now.getTime() + accessTokenExpirationMs);
 		return Jwts.builder()
 				.subject(userId.toString())
 				.claim("email", email)
+				.claim("role", role.name())
 				.issuedAt(now)
 				.expiration(expiry)
 				.signWith(signingKey)
