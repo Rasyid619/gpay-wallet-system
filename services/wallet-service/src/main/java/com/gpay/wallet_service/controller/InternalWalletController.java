@@ -1,11 +1,7 @@
 package com.gpay.wallet_service.controller;
 
-import com.gpay.common.tracing.TraceIdContext;
-import com.gpay.wallet_service.dto.IdempotentResponse;
-import com.gpay.wallet_service.dto.InternalWalletCreditRequest;
 import com.gpay.wallet_service.dto.InternalWalletProvisionRequest;
 import com.gpay.wallet_service.dto.InternalWalletProvisionResponse;
-import com.gpay.wallet_service.service.InternalWalletCreditService;
 import com.gpay.wallet_service.service.InternalWalletProvisionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class InternalWalletController {
 
-	private final InternalWalletCreditService internalWalletCreditService;
 	private final InternalWalletProvisionService internalWalletProvisionService;
 
 	@PostMapping("/provision")
@@ -30,18 +25,5 @@ public class InternalWalletController {
 			@RequestHeader("X-Internal-Token") String internalToken,
 			@Valid @RequestBody InternalWalletProvisionRequest request) {
 		return ResponseEntity.ok(internalWalletProvisionService.provision(internalToken, request));
-	}
-
-	@PostMapping("/credit")
-	public ResponseEntity<Object> credit(
-			@RequestHeader("X-Internal-Token") String internalToken,
-			@RequestHeader("Idempotency-Key") String idempotencyKey,
-			@Valid @RequestBody InternalWalletCreditRequest request) {
-		IdempotentResponse response = internalWalletCreditService.credit(
-				internalToken,
-				idempotencyKey,
-				request,
-				TraceIdContext.getTraceId());
-		return ResponseEntity.status(response.status()).body(response.body());
 	}
 }

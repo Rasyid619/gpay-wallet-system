@@ -112,8 +112,10 @@ Endpoints:
 GET  /wallets/balance
 GET  /wallets/mutations
 POST /wallets/transfer
-POST /internal/wallets/credit
 ```
+
+Wallet credit from Payment Service arrives over Kafka (consumed by
+`WalletCreditCommandConsumer`), not as an HTTP endpoint.
 
 Database:
 
@@ -361,8 +363,8 @@ Top-up flow:
 8. Mock Gateway sends webhook callback
 9. Payment Service validates HMAC
 10. SUCCESS webhook creates outbox event
-11. Outbox worker calls Wallet Service internal credit
-12. Wallet Service credits wallet idempotently
+11. Outbox worker publishes a wallet-credit command to Kafka
+12. Wallet Service consumes the command and credits wallet idempotently
 ```
 
 ---
@@ -382,12 +384,12 @@ Outbox flow:
 2. Payment Service updates top-up transaction to SUCCESS
 3. Payment Service inserts CREDIT_WALLET_REQUESTED outbox event
 4. Scheduled worker reads pending outbox events
-5. Worker calls Wallet Service /internal/wallets/credit
-6. If success, mark outbox event as PROCESSED
-7. If failed, increase retry_count and update next_retry_at
+5. Worker publishes the wallet-credit command to Kafka
+6. If the broker acks, mark outbox event as PROCESSED
+7. If publishing fails, increase retry_count and update next_retry_at
 ```
 
-Wallet Service internal credit must be idempotent by transaction ID.
+Wallet Service credit consumption must be idempotent by transaction ID.
 
 ---
 
@@ -404,8 +406,10 @@ Applied to:
 ```txt
 POST /wallets/transfer
 POST /payments/top-up
-POST /internal/wallets/credit
 ```
+
+Wallet credit replays use the same idempotency keys, carried on the Kafka
+wallet-credit command rather than an HTTP header.
 
 Behavior:
 
