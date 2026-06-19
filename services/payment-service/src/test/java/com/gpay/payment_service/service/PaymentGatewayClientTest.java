@@ -1,6 +1,7 @@
 package com.gpay.payment_service.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 class PaymentGatewayClientTest {
 
@@ -67,6 +69,52 @@ class PaymentGatewayClientTest {
 				"trace-timeout");
 
 		assertThat(Duration.between(startedAt, Instant.now()).toMillis()).isLessThan(1000);
+	}
+
+	@Test
+	void sendsRequestWithoutTraceIdHeaderWhenTraceIdIsBlank() throws Exception {
+		CapturedRequest capturedRequest = startServer(0);
+		PaymentGatewayClient client = client(5000L);
+
+		client.requestTopUp(
+				UUID.randomUUID(),
+				new TopUpRequest(UUID.randomUUID(), 75000L, PaymentGatewayMode.SUCCESS),
+				"  ");
+
+		assertThat(capturedRequest.await()).isTrue();
+		assertThat(capturedRequest.traceId).isNull();
+	}
+
+	@Test
+	void connectionFailureIsSwallowed() {
+		PaymentGatewayProperties properties = new PaymentGatewayProperties(
+				URI.create("http://localhost:1/mock-gateway/top-up"),
+				5000L);
+		PaymentGatewayClient client = new PaymentGatewayClient(properties, WebClient.builder());
+
+		client.requestTopUp(
+				UUID.randomUUID(),
+				new TopUpRequest(UUID.randomUUID(), 75000L, PaymentGatewayMode.SUCCESS),
+				"trace-conn-refused");
+	}
+
+	@Test
+	void nonTimeoutNonRequestExceptionIsRethrown() {
+		PaymentGatewayProperties properties = new PaymentGatewayProperties(
+				URI.create("http://localhost:65535/mock-gateway/top-up"),
+				5000L);
+		WebClient.Builder builder = WebClient.builder()
+				.filter((request, next) -> {
+					throw WebClientResponseException.create(
+							500, "Internal Server Error", null, null, null);
+				});
+		PaymentGatewayClient client = new PaymentGatewayClient(properties, builder);
+
+		assertThatThrownBy(() -> client.requestTopUp(
+				UUID.randomUUID(),
+				new TopUpRequest(UUID.randomUUID(), 75000L, PaymentGatewayMode.SUCCESS),
+				"trace-rethrow"))
+				.isInstanceOf(WebClientResponseException.class);
 	}
 
 	private PaymentGatewayClient client(Long timeoutMs) {
