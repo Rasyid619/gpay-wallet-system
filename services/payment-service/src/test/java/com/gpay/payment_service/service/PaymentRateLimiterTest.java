@@ -68,6 +68,18 @@ class PaymentRateLimiterTest {
 	}
 
 	@Test
+	void failsClosedWhenIncrementReturnsNull() {
+		UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000005");
+		String expectedKey = "rate-limit:payment:" + userId + ":202606091015";
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.increment(expectedKey)).thenReturn(null);
+
+		assertThatThrownBy(() -> rateLimiter.checkTopUpAllowed(userId))
+				.isInstanceOf(RateLimitUnavailableException.class)
+				.hasMessageContaining("Payment rate limit cannot be verified");
+	}
+
+	@Test
 	void failsClosedWhenRedisExpireFailsForNewWindow() {
 		UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000004");
 		String expectedKey = "rate-limit:payment:" + userId + ":202606091015";

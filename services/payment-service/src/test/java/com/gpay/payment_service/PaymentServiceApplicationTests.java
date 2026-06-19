@@ -1,26 +1,19 @@
 package com.gpay.payment_service;
 
+import com.gpay.payment_service.support.PaymentTestContainers;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
-/* Verifies the payment service Spring context can start. */
+/* Verifies the payment service Spring context can start against the shared test containers. */
 @SpringBootTest
-@TestPropertySource(properties = {
-		"payment.gateway.top-up-url=http://localhost:8084/mock-gateway/top-up",
-		"payment.gateway.timeout-ms=5000",
-		"payment.webhook.gateway-secret=test-gateway-webhook-secret",
-		"spring.kafka.bootstrap-servers=localhost:9092",
-		"payment.kafka.wallet-credit-commands-topic=wallet.credit.commands",
-		"payment.outbox.retry-delay-ms=60000",
-		"payment.outbox.max-attempts=10",
-		"payment.outbox.max-age-ms=86400000",
-		"payment.outbox.processing-timeout-ms=300000",
-		"payment.outbox.batch-size=10",
-		"payment.outbox.worker-fixed-delay-ms=3600000",
-		"payment.outbox.worker-initial-delay-ms=3600000"
-})
 class PaymentServiceApplicationTests {
+
+	@DynamicPropertySource
+	static void configure(DynamicPropertyRegistry registry) {
+		PaymentTestContainers.registerProperties(registry);
+	}
 
 	@Test
 	void contextLoads() {

@@ -14,6 +14,7 @@ import com.gpay.payment_service.entity.OutboxEvent;
 import com.gpay.payment_service.entity.TopupTransaction;
 import com.gpay.payment_service.repository.OutboxEventRepository;
 import com.gpay.payment_service.repository.TopupTransactionRepository;
+import com.gpay.payment_service.support.PaymentTestContainers;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
@@ -21,25 +22,18 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
-@TestPropertySource(properties = {
-		"payment.gateway.top-up-url=http://localhost:8084/mock-gateway/top-up",
-		"payment.gateway.timeout-ms=5000",
-		"payment.webhook.gateway-secret=test-gateway-webhook-secret",
-		"spring.kafka.bootstrap-servers=localhost:9092",
-		"payment.kafka.wallet-credit-commands-topic=wallet.credit.commands",
-		"payment.outbox.retry-delay-ms=60000",
-		"payment.outbox.max-attempts=3",
-		"payment.outbox.max-age-ms=86400000",
-		"payment.outbox.processing-timeout-ms=300000",
-		"payment.outbox.batch-size=10",
-		"payment.outbox.worker-fixed-delay-ms=3600000",
-		"payment.outbox.worker-initial-delay-ms=3600000"
-})
 class PaymentOutboxWorkerTest {
+
+	@DynamicPropertySource
+	static void configure(DynamicPropertyRegistry registry) {
+		PaymentTestContainers.registerProperties(registry);
+		registry.add("payment.outbox.max-attempts", () -> "3");
+	}
 
 	@Autowired
 	private ObjectMapper objectMapper;
