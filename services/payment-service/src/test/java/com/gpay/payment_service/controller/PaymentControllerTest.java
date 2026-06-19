@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -17,6 +18,7 @@ import com.gpay.payment_service.dto.IdempotentResponse;
 import com.gpay.payment_service.dto.TopUpRequest;
 import com.gpay.payment_service.dto.TopUpResponse;
 import com.gpay.payment_service.exception.GlobalExceptionHandler;
+import com.gpay.payment_service.exception.NotFoundException;
 import com.gpay.payment_service.exception.RateLimitExceededException;
 import com.gpay.payment_service.exception.RateLimitUnavailableException;
 import com.gpay.payment_service.security.JwtAuthFilter;
@@ -142,6 +144,39 @@ class PaymentControllerTest {
 				.andExpect(jsonPath("$.amount").value(75000))
 				.andExpect(jsonPath("$.status").value("PENDING"))
 				.andExpect(jsonPath("$.created_at").value("2026-06-09T09:30:00Z"));
+	}
+
+	@Test
+	void returnsPaymentForOwningAuthenticatedUser() throws Exception {
+		UUID userId = UUID.randomUUID();
+		UUID walletId = UUID.randomUUID();
+		UUID paymentTransactionId = UUID.randomUUID();
+		Instant createdAt = Instant.parse("2026-06-09T09:30:00Z");
+		when(paymentTopUpService.fetchPaymentForUser(eq(userId), eq(paymentTransactionId)))
+				.thenReturn(new TopUpResponse(paymentTransactionId, walletId, 75000L, "SUCCESS", createdAt));
+
+		mockMvc.perform(get("/payments/{id}", paymentTransactionId)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(userId)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.payment_transaction_id").value(paymentTransactionId.toString()))
+				.andExpect(jsonPath("$.wallet_id").value(walletId.toString()))
+				.andExpect(jsonPath("$.amount").value(75000))
+				.andExpect(jsonPath("$.status").value("SUCCESS"))
+				.andExpect(jsonPath("$.created_at").value("2026-06-09T09:30:00Z"));
+	}
+
+	@Test
+	void returnsNotFoundWhenServiceReportsPaymentNotFound() throws Exception {
+		UUID userId = UUID.randomUUID();
+		UUID paymentTransactionId = UUID.randomUUID();
+		when(paymentTopUpService.fetchPaymentForUser(eq(userId), eq(paymentTransactionId)))
+				.thenThrow(new NotFoundException("Payment transaction not found"));
+
+		mockMvc.perform(get("/payments/{id}", paymentTransactionId)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(userId)))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("NOT_FOUND"))
+				.andExpect(jsonPath("$.trace_id").exists());
 	}
 
 	@Test

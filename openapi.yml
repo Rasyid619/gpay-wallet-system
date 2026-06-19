@@ -292,6 +292,38 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /payments/{id}:
+    get:
+      tags:
+        - Payment
+      summary: Get one of the authenticated user's payment transactions.
+      description: Returns a single top-up payment owned by the authenticated user. A payment that does not exist or belongs to another user returns 404 without leaking existence.
+      servers:
+        - url: http://localhost:8083
+          description: Local Payment Service.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
+        - name: id
+          in: path
+          required: true
+          description: Payment transaction identifier.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Payment transaction was retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentTopUpShowResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /payments/webhook/gateway:
     post:
       tags:
@@ -841,6 +873,8 @@ components:
           type: string
           enum:
             - PENDING
+            - SUCCESS
+            - FAILED
         created_at:
           type: string
           format: date-time

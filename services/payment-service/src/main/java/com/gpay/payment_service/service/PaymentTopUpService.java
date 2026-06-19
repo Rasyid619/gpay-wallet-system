@@ -9,6 +9,7 @@ import com.gpay.payment_service.entity.IdempotencyKey;
 import com.gpay.payment_service.entity.TopupTransaction;
 import com.gpay.payment_service.exception.BadRequestException;
 import com.gpay.payment_service.exception.IdempotencyConflictException;
+import com.gpay.payment_service.exception.NotFoundException;
 import com.gpay.payment_service.repository.IdempotencyKeyRepository;
 import com.gpay.payment_service.repository.TopupTransactionRepository;
 import java.nio.charset.StandardCharsets;
@@ -70,6 +71,21 @@ public class PaymentTopUpService {
 		return processTopUp(userId, idempotencyKey, requestHash, request, traceId);
 	}
 
+	/**
+	 * Fetches one of the user's own top-up transactions.
+	 *
+	 * @param userId    authenticated user identifier
+	 * @param paymentId payment transaction identifier
+	 * @return the top-up response for the owned transaction
+	 * @throws NotFoundException when the transaction is absent or owned by another user
+	 */
+	@Transactional(readOnly = true)
+	public TopUpResponse fetchPaymentForUser(UUID userId, UUID paymentId) {
+		TopupTransaction transaction = topupTransactionRepository.findByIdAndUserId(paymentId, userId)
+				.orElseThrow(() -> new NotFoundException("Payment transaction not found"));
+		return toTopUpResponse(transaction);
+	}
+
 	private IdempotentResponse replayOrConflict(IdempotencyKey existing, String requestHash) {
 		if (!Objects.equals(existing.getRequestHash(), requestHash)) {
 			throw new IdempotencyConflictException("Idempotency key was already used with a different request");
@@ -97,12 +113,7 @@ public class PaymentTopUpService {
 		topupTransactionRepository.save(transaction);
 		callGatewayAfterCommit(transaction.getId(), request, traceId);
 
-		TopUpResponse response = new TopUpResponse(
-				transaction.getId(),
-				transaction.getWalletId(),
-				transaction.getAmount(),
-				transaction.getStatus().name(),
-				transaction.getCreatedAt());
+		TopUpResponse response = toTopUpResponse(transaction);
 		paymentActivityLogService.logTopUpCreated(
 				transaction,
 				request,
@@ -111,6 +122,15 @@ public class PaymentTopUpService {
 				now);
 		storeIdempotency(userId, idempotencyKey, requestHash, HttpStatus.CREATED.value(), response, now);
 		return new IdempotentResponse(HttpStatus.CREATED.value(), response);
+	}
+
+	private TopUpResponse toTopUpResponse(TopupTransaction transaction) {
+		return new TopUpResponse(
+				transaction.getId(),
+				transaction.getWalletId(),
+				transaction.getAmount(),
+				transaction.getStatus().name(),
+				transaction.getCreatedAt());
 	}
 
 	private Long durationMs(long startedAtNanos) {

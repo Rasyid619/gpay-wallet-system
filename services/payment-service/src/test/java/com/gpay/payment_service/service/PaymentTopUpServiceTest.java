@@ -16,6 +16,7 @@ import com.gpay.payment_service.entity.ActivityLog;
 import com.gpay.payment_service.entity.TopupTransaction;
 import com.gpay.payment_service.exception.BadRequestException;
 import com.gpay.payment_service.exception.IdempotencyConflictException;
+import com.gpay.payment_service.exception.NotFoundException;
 import com.gpay.payment_service.repository.ActivityLogRepository;
 import com.gpay.payment_service.repository.IdempotencyKeyRepository;
 import com.gpay.payment_service.repository.TopupTransactionRepository;
@@ -188,6 +189,39 @@ class PaymentTopUpServiceTest {
 				new TopUpRequest(UUID.randomUUID(), 75000L, PaymentGatewayMode.FAILED),
 				"trace-conflict"))
 				.isInstanceOf(IdempotencyConflictException.class);
+	}
+
+	@Test
+	void fetchesOwnedPaymentForUser() {
+		UUID userId = UUID.randomUUID();
+		UUID walletId = UUID.randomUUID();
+		IdempotentResponse created = paymentTopUpService.topUp(
+				userId,
+				"topup-fetch-" + UUID.randomUUID(),
+				new TopUpRequest(walletId, 75000L, PaymentGatewayMode.SUCCESS),
+				"trace-fetch");
+		UUID paymentId = ((TopUpResponse) created.body()).paymentTransactionId();
+
+		TopUpResponse fetched = paymentTopUpService.fetchPaymentForUser(userId, paymentId);
+
+		assertThat(fetched.paymentTransactionId()).isEqualTo(paymentId);
+		assertThat(fetched.walletId()).isEqualTo(walletId);
+		assertThat(fetched.amount()).isEqualTo(75000L);
+		assertThat(fetched.status()).isEqualTo("PENDING");
+	}
+
+	@Test
+	void throwsNotFoundWhenPaymentIsNotOwnedByUser() {
+		UUID ownerId = UUID.randomUUID();
+		IdempotentResponse created = paymentTopUpService.topUp(
+				ownerId,
+				"topup-owner-" + UUID.randomUUID(),
+				new TopUpRequest(UUID.randomUUID(), 75000L, PaymentGatewayMode.SUCCESS),
+				"trace-owner");
+		UUID paymentId = ((TopUpResponse) created.body()).paymentTransactionId();
+
+		assertThatThrownBy(() -> paymentTopUpService.fetchPaymentForUser(UUID.randomUUID(), paymentId))
+				.isInstanceOf(NotFoundException.class);
 	}
 
 	@Test

@@ -12,4 +12,6 @@ public interface TopupTransactionRepository extends JpaRepository<TopupTransacti
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<TopupTransaction> findLockedById(UUID id);
+
+	Optional<TopupTransaction> findByIdAndUserId(UUID id, UUID userId);
 }
