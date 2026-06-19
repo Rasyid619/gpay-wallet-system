@@ -11,14 +11,13 @@ import com.gpay.wallet_service.repository.LedgerEntryRepository;
 import com.gpay.wallet_service.repository.TransferRepository;
 import com.gpay.wallet_service.repository.WalletRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -271,61 +270,40 @@ class WalletTransferIntegrationTest extends AbstractIntegrationTest {
 		String body = transferBody(receiver.getId(), 30_000L);
 
 		ExecutorService executor = Executors.newFixedThreadPool(2);
-		AtomicInteger appliedCount = new AtomicInteger();
+		int firstStatus;
+		int secondStatus;
 		try {
-			Future<?> first = executor.submit(() -> tryTransfer(token, "transfer-concurrent", body, appliedCount));
-			Future<?> second = executor.submit(() -> tryTransfer(token, "transfer-concurrent", body, appliedCount));
-			first.get();
-			second.get();
+			Future<Integer> first = executor.submit(() -> performTransfer(token, "transfer-concurrent", body));
+			Future<Integer> second = executor.submit(() -> performTransfer(token, "transfer-concurrent", body));
+			firstStatus = first.get();
+			secondStatus = second.get();
 		} finally {
 			executor.shutdownNow();
 		}
 
-		assertThat(appliedCount.get()).isEqualTo(1);
+		// The losing request is handled gracefully: it either replays the stored response (200)
+		// or loses the idempotency-key race and is mapped to a clean 409 — never a 5xx error.
+		assertThat(firstStatus).isIn(200, 409);
+		assertThat(secondStatus).isIn(200, 409);
+		assertThat(List.of(firstStatus, secondStatus)).contains(200);
 		assertThat(walletRepository.findById(sender.getId()).orElseThrow().getBalance()).isEqualTo(20_000L);
 		assertThat(walletRepository.findById(receiver.getId()).orElseThrow().getBalance()).isEqualTo(30_000L);
 		assertThat(transferRepository.count()).isEqualTo(1);
 	}
 
 	/*
-	 * Performs one concurrent transfer attempt. The wallet row lock serializes the two
-	 * requests, so the second commit collides on the idempotency-key unique constraint and
-	 * rolls back. Counting only HTTP 200 responses proves exactly-once application.
+	 * Sends one concurrent transfer attempt and returns the resulting HTTP status. The wallet
+	 * row lock serializes the two requests; the loser either replays (200) or loses the
+	 * idempotency-key insert race and is mapped to 409.
 	 */
-	private void tryTransfer(String token, String idempotencyKey, String body, AtomicInteger appliedCount) {
-		try {
-			int statusCode = mockMvc.perform(post("/wallets/transfer")
-							.header(HttpHeaders.AUTHORIZATION, token)
-							.header("Idempotency-Key", idempotencyKey)
-							.contentType(MediaType.APPLICATION_JSON)
-							.content(body))
-					.andReturn()
-					.getResponse()
-					.getStatus();
-			if (statusCode == 200) {
-				appliedCount.incrementAndGet();
-			}
-		} catch (Exception ex) {
-			// The losing request fails its idempotency-key insert and rolls back; the
-			// surfaced data-integrity error confirms the duplicate was rejected. Any other
-			// failure is a real bug, so re-raise it instead of silently passing.
-			if (!isDataIntegrityFailure(ex)) {
-				throw new IllegalStateException("unexpected concurrent transfer failure", ex);
-			}
-		}
-	}
-
-	/*
-	 * Walks the cause chain to confirm the concurrent loser failed on the idempotency-key
-	 * unique constraint rather than an unrelated error.
-	 */
-	private boolean isDataIntegrityFailure(Throwable error) {
-		for (Throwable current = error; current != null; current = current.getCause()) {
-			if (current instanceof DataIntegrityViolationException) {
-				return true;
-			}
-		}
-
-		return false;
+	private int performTransfer(String token, String idempotencyKey, String body) throws Exception {
+		return mockMvc.perform(post("/wallets/transfer")
+						.header(HttpHeaders.AUTHORIZATION, token)
+						.header("Idempotency-Key", idempotencyKey)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andReturn()
+				.getResponse()
+				.getStatus();
 	}
 }

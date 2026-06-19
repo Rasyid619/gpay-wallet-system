@@ -478,6 +478,10 @@ components:
               value:
                 error: PAYMENT_TRANSACTION_CONFLICT
                 message: Payment transaction was already credited with a different request
+            concurrent_request_conflict:
+              value:
+                error: CONCURRENT_REQUEST_CONFLICT
+                message: A concurrent request with the same idempotency key is in progress; please retry
     NotFound:
       description: The requested resource was not found.
       content:
