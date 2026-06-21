@@ -86,6 +86,20 @@ public class PaymentTopUpService {
 		return toTopUpResponse(transaction);
 	}
 
+	/**
+	 * Reads any payment top-up transaction by id without ownership scoping for admin or support lookups.
+	 *
+	 * @param paymentId payment transaction identifier
+	 * @return payment top-up response
+	 * @throws NotFoundException if no payment transaction exists for the id
+	 */
+	@Transactional(readOnly = true)
+	public TopUpResponse fetchPayment(UUID paymentId) {
+		TopupTransaction transaction = topupTransactionRepository.findById(paymentId)
+				.orElseThrow(() -> new NotFoundException("Payment transaction was not found"));
+		return toTopUpResponse(transaction);
+	}
+
 	private IdempotentResponse replayOrConflict(IdempotencyKey existing, String requestHash) {
 		if (!Objects.equals(existing.getRequestHash(), requestHash)) {
 			throw new IdempotencyConflictException("Idempotency key was already used with a different request");

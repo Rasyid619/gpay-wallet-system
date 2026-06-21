@@ -14,6 +14,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -26,6 +27,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
 	private static final String BEARER_PREFIX = "Bearer ";
+	private static final String DEFAULT_ROLE = "USER";
 
 	private final JwtService jwtService;
 
@@ -45,13 +47,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 		try {
 			Claims claims = jwtService.parseToken(token);
 			UUID userId = UUID.fromString(claims.getSubject());
+			String authority = "ROLE_" + resolveRole(claims);
 			UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-					userId, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+					userId, null, List.of(new SimpleGrantedAuthority(authority)));
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 		} catch (JwtException | IllegalArgumentException ignored) {
 			// Invalid token leaves the request unauthenticated for Spring Security to reject.
 		}
 
 		filterChain.doFilter(request, response);
+	}
+
+	private String resolveRole(Claims claims) {
+		String role = claims.get("role", String.class);
+		if (!StringUtils.hasText(role)) {
+			return DEFAULT_ROLE;
+		}
+
+		return role;
 	}
 }

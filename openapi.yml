@@ -367,6 +367,40 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /admin/payments/{id}:
+    get:
+      tags:
+        - Payment
+      summary: Look up any payment top-up transaction by id.
+      description: Admin and support lookup of any payment top-up transaction regardless of owner. Requires an access token whose role claim is ADMIN; authenticated non-admin users receive 403.
+      servers:
+        - url: http://localhost:8083
+          description: Local Payment Service.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
+        - name: id
+          in: path
+          required: true
+          description: Payment transaction identifier.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Payment transaction was found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentTopUpShowResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /mock-gateway/top-up:
     post:
       tags:
@@ -496,6 +530,16 @@ components:
           example:
             error: UNAUTHORIZED
             message: Authentication is required
+            trace_id: trace-auth-123
+    Forbidden:
+      description: The authenticated user lacks the required role for this resource.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: FORBIDDEN
+            message: Access is denied
             trace_id: trace-auth-123
     TooManyRequests:
       description: The authenticated user exceeded the payment top-up rate limit.

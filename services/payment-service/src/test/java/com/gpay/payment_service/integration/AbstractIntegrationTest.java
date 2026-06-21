@@ -64,15 +64,29 @@ public abstract class AbstractIntegrationTest {
 	 * @return signed compact JWT string
 	 */
 	protected String createToken(UUID userId) {
+		return createToken(userId, null);
+	}
+
+	/**
+	 * Mints a valid HMAC-SHA256 access token carrying the given role claim for RBAC tests.
+	 *
+	 * @param userId subject the token authenticates
+	 * @param role   role embedded as the {@code role} claim, or {@code null} to omit it
+	 * @return signed compact JWT string
+	 */
+	protected String createToken(UUID userId, String role) {
 		Instant now = Instant.now();
 		SecretKey signingKey = Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8));
-		return Jwts.builder()
+		var builder = Jwts.builder()
 				.subject(userId.toString())
 				.claim("email", "user@example.com")
 				.issuedAt(Date.from(now))
-				.expiration(Date.from(now.plusSeconds(900)))
-				.signWith(signingKey)
-				.compact();
+				.expiration(Date.from(now.plusSeconds(900)));
+		if (role != null) {
+			builder.claim("role", role);
+		}
+
+		return builder.signWith(signingKey).compact();
 	}
 
 	/**
