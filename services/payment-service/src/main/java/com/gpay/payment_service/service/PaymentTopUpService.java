@@ -97,12 +97,17 @@ public class PaymentTopUpService {
 	 * @param paymentId   payment transaction identifier
 	 * @param traceId     current request trace identifier
 	 * @return payment top-up response
-	 * @throws NotFoundException if no payment transaction exists for the id
+	 * @throws NotFoundException if no payment transaction exists for the id, after auditing the probe
 	 */
 	@Transactional
 	public TopUpResponse fetchPayment(UUID adminUserId, UUID paymentId, String traceId) {
-		TopupTransaction transaction = topupTransactionRepository.findById(paymentId)
-				.orElseThrow(() -> new NotFoundException("Payment transaction was not found"));
+		Optional<TopupTransaction> found = topupTransactionRepository.findById(paymentId);
+		if (found.isEmpty()) {
+			paymentActivityLogService.logAdminPaymentLookupNotFound(adminUserId, paymentId, traceId, Instant.now());
+			throw new NotFoundException("Payment transaction was not found");
+		}
+
+		TopupTransaction transaction = found.get();
 		paymentActivityLogService.logAdminPaymentLookup(adminUserId, transaction, traceId, Instant.now());
 		return toTopUpResponse(transaction);
 	}

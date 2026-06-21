@@ -101,6 +101,34 @@ class AdminPaymentLookupIntegrationTest extends AbstractIntegrationTest {
 	}
 
 	@Test
+	void writesAuditLogOnNotFoundAdminLookup() throws Exception {
+		UUID adminId = UUID.randomUUID();
+		UUID probedId = UUID.randomUUID();
+
+		mockMvc.perform(get("/admin/payments/{id}", probedId)
+						.header("X-Trace-Id", "trace-admin-probe")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(adminId, "ADMIN")))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("NOT_FOUND"));
+
+		Long auditCount = jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM activity_logs WHERE action = 'ADMIN_PAYMENT_LOOKUP'",
+				Long.class);
+		assertThat(auditCount).isEqualTo(1L);
+
+		Map<String, Object> audit = jdbcTemplate.queryForMap(
+				"SELECT user_id, transaction_id, status, trace_id, request_payload::text AS request_payload "
+						+ "FROM activity_logs WHERE action = 'ADMIN_PAYMENT_LOOKUP'");
+		assertThat(audit.get("user_id")).hasToString(adminId.toString());
+		assertThat(audit.get("transaction_id")).isNull();
+		assertThat(audit.get("status")).isEqualTo("NOT_FOUND");
+		assertThat(audit.get("trace_id")).isEqualTo("trace-admin-probe");
+		assertThat(audit.get("request_payload").toString())
+				.contains("requested_payment_id")
+				.contains(probedId.toString());
+	}
+
+	@Test
 	void rejectsLookupForNonAdmin() throws Exception {
 		TopupTransaction seeded = seedPayment(UUID.randomUUID(), UUID.randomUUID());
 

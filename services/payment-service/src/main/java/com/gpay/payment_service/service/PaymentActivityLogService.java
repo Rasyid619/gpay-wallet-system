@@ -14,6 +14,8 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /* Stores user-facing payment lifecycle activity logs. */
 @Service
@@ -24,6 +26,7 @@ public class PaymentActivityLogService {
 	private static final String ACTION_GATEWAY_WEBHOOK = "PAYMENT_GATEWAY_WEBHOOK";
 	private static final String ACTION_TOP_UP = "PAYMENT_TOP_UP";
 	private static final String SERVICE_NAME = "payment-service";
+	private static final String STATUS_NOT_FOUND = "NOT_FOUND";
 	private static final String STATUS_SUCCESS = "SUCCESS";
 
 	private final ActivityLogRepository activityLogRepository;
@@ -115,6 +118,39 @@ public class PaymentActivityLogService {
 				now));
 	}
 
+	/**
+	 * Audits an admin/support payment lookup that resolved to no transaction.
+	 *
+	 * <p>Runs in its own transaction so the audit row survives the {@code NotFoundException} rollback of
+	 * the calling lookup. The probed id is stored in the payload because no transaction row exists to
+	 * reference. Follow this pattern for unknown-id branches of future admin/support read endpoints.
+	 *
+	 * @param adminUserId       acting admin principal performing the lookup
+	 * @param requestedPaymentId payment transaction id that was probed
+	 * @param traceId           current request trace identifier
+	 * @param now               activity creation timestamp
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void logAdminPaymentLookupNotFound(
+			UUID adminUserId,
+			UUID requestedPaymentId,
+			String traceId,
+			Instant now) {
+		AdminPaymentLookupNotFoundAudit audit = new AdminPaymentLookupNotFoundAudit(requestedPaymentId);
+		activityLogRepository.save(ActivityLog.create(
+				UUID.randomUUID(),
+				traceId,
+				adminUserId,
+				null,
+				SERVICE_NAME,
+				ACTION_ADMIN_PAYMENT_LOOKUP,
+				STATUS_NOT_FOUND,
+				writeJson(audit),
+				null,
+				null,
+				now));
+	}
+
 	private void saveActivityLog(
 			TopupTransaction transaction,
 			String action,
@@ -154,5 +190,14 @@ public class PaymentActivityLogService {
 	private record AdminPaymentLookupAudit(
 			@JsonProperty("target_user_id") UUID targetUserId,
 			@JsonProperty("wallet_id") UUID walletId) {
+	}
+
+	/**
+	 * Probed payment id captured in an admin payment lookup audit when no transaction was found.
+	 *
+	 * @param requestedPaymentId payment transaction id that the admin attempted to read
+	 */
+	private record AdminPaymentLookupNotFoundAudit(
+			@JsonProperty("requested_payment_id") UUID requestedPaymentId) {
 	}
 }
