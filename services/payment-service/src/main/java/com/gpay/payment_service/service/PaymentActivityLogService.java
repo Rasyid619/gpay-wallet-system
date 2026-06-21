@@ -1,5 +1,6 @@
 package com.gpay.payment_service.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gpay.payment_service.dto.GatewayWebhookRequest;
@@ -19,9 +20,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PaymentActivityLogService {
 
+	private static final String ACTION_ADMIN_PAYMENT_LOOKUP = "ADMIN_PAYMENT_LOOKUP";
 	private static final String ACTION_GATEWAY_WEBHOOK = "PAYMENT_GATEWAY_WEBHOOK";
 	private static final String ACTION_TOP_UP = "PAYMENT_TOP_UP";
 	private static final String SERVICE_NAME = "payment-service";
+	private static final String STATUS_SUCCESS = "SUCCESS";
 
 	private final ActivityLogRepository activityLogRepository;
 	private final ObjectMapper objectMapper;
@@ -76,6 +79,42 @@ public class PaymentActivityLogService {
 				now);
 	}
 
+	/**
+	 * Audits a privileged admin cross-owner payment lookup.
+	 *
+	 * <p>This is the reusable pattern for auditing privileged admin or support reads of records they do
+	 * not own: the audit row records the acting principal as {@code user_id} and the current request
+	 * {@code trace_id}, never the looked-up record's owner or its originating trace. Future admin and
+	 * support read endpoints should follow this shape rather than the owner-derived
+	 * {@code saveActivityLog} helper. The cross-owner target is captured in the request payload JSON.
+	 *
+	 * @param adminUserId acting admin principal performing the lookup
+	 * @param transaction the looked-up payment transaction owned by another user
+	 * @param traceId     current request trace identifier
+	 * @param now         audit creation timestamp
+	 */
+	public void logAdminPaymentLookup(
+			UUID adminUserId,
+			TopupTransaction transaction,
+			String traceId,
+			Instant now) {
+		AdminPaymentLookupAudit audit = new AdminPaymentLookupAudit(
+				transaction.getUserId(),
+				transaction.getWalletId());
+		activityLogRepository.save(ActivityLog.create(
+				UUID.randomUUID(),
+				traceId,
+				adminUserId,
+				transaction.getId(),
+				SERVICE_NAME,
+				ACTION_ADMIN_PAYMENT_LOOKUP,
+				STATUS_SUCCESS,
+				writeJson(audit),
+				null,
+				null,
+				now));
+	}
+
 	private void saveActivityLog(
 			TopupTransaction transaction,
 			String action,
@@ -104,5 +143,16 @@ public class PaymentActivityLogService {
 		} catch (JsonProcessingException ex) {
 			throw new IllegalStateException("Payment activity payload could not be serialized", ex);
 		}
+	}
+
+	/**
+	 * Cross-owner target captured in an admin payment lookup audit payload.
+	 *
+	 * @param targetUserId owner of the looked-up payment transaction
+	 * @param walletId     wallet of the looked-up payment transaction
+	 */
+	private record AdminPaymentLookupAudit(
+			@JsonProperty("target_user_id") UUID targetUserId,
+			@JsonProperty("wallet_id") UUID walletId) {
 	}
 }

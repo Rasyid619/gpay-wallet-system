@@ -1,5 +1,8 @@
 package com.gpay.payment_service.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -61,7 +64,7 @@ class AdminPaymentControllerTest {
 		UUID paymentId = UUID.randomUUID();
 		UUID walletId = UUID.randomUUID();
 		Instant createdAt = Instant.parse("2026-06-09T09:30:00Z");
-		when(paymentTopUpService.fetchPayment(paymentId))
+		when(paymentTopUpService.fetchPayment(any(), eq(paymentId), any()))
 				.thenReturn(new TopUpResponse(paymentId, walletId, 75000L, "PENDING", createdAt));
 
 		mockMvc.perform(get("/admin/payments/{id}", paymentId)
@@ -72,6 +75,21 @@ class AdminPaymentControllerTest {
 				.andExpect(jsonPath("$.amount").value(75000))
 				.andExpect(jsonPath("$.status").value("PENDING"))
 				.andExpect(jsonPath("$.created_at").value("2026-06-09T09:30:00Z"));
+	}
+
+	@Test
+	void passesAuthenticatedAdminAndTraceToLookup() throws Exception {
+		UUID paymentId = UUID.randomUUID();
+		UUID adminId = UUID.randomUUID();
+		when(paymentTopUpService.fetchPayment(any(), eq(paymentId), any()))
+				.thenReturn(new TopUpResponse(paymentId, UUID.randomUUID(), 75000L, "PENDING", Instant.now()));
+
+		mockMvc.perform(get("/admin/payments/{id}", paymentId)
+						.header("X-Trace-Id", "trace-admin-123")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(adminId, "ADMIN")))
+				.andExpect(status().isOk());
+
+		verify(paymentTopUpService).fetchPayment(adminId, paymentId, "trace-admin-123");
 	}
 
 	@Test
@@ -88,7 +106,7 @@ class AdminPaymentControllerTest {
 	@Test
 	void returnsNotFoundWhenPaymentMissing() throws Exception {
 		UUID paymentId = UUID.randomUUID();
-		when(paymentTopUpService.fetchPayment(paymentId))
+		when(paymentTopUpService.fetchPayment(any(), eq(paymentId), any()))
 				.thenThrow(new NotFoundException("Payment transaction was not found"));
 
 		mockMvc.perform(get("/admin/payments/{id}", paymentId)

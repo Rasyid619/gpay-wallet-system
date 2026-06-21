@@ -87,16 +87,23 @@ public class PaymentTopUpService {
 	}
 
 	/**
-	 * Reads any payment top-up transaction by id without ownership scoping for admin or support lookups.
+	 * Reads any payment top-up transaction by id without ownership scoping for admin or support lookups,
+	 * auditing the privileged cross-owner read.
 	 *
-	 * @param paymentId payment transaction identifier
+	 * <p>Runs in a read-write transaction so the audit insert is flushed; a read-only transaction sets
+	 * Hibernate flush mode to MANUAL and would silently drop the audit row.
+	 *
+	 * @param adminUserId acting admin principal performing the lookup
+	 * @param paymentId   payment transaction identifier
+	 * @param traceId     current request trace identifier
 	 * @return payment top-up response
 	 * @throws NotFoundException if no payment transaction exists for the id
 	 */
-	@Transactional(readOnly = true)
-	public TopUpResponse fetchPayment(UUID paymentId) {
+	@Transactional
+	public TopUpResponse fetchPayment(UUID adminUserId, UUID paymentId, String traceId) {
 		TopupTransaction transaction = topupTransactionRepository.findById(paymentId)
 				.orElseThrow(() -> new NotFoundException("Payment transaction was not found"));
+		paymentActivityLogService.logAdminPaymentLookup(adminUserId, transaction, traceId, Instant.now());
 		return toTopUpResponse(transaction);
 	}
 
