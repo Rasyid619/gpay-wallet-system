@@ -46,6 +46,29 @@ class AdminBootstrapConfigTest {
 	}
 
 	@Test
+	void normalizesEmailWhenCreating() {
+		AdminBootstrapConfig config = configWith("  Admin@Example.COM ", "AdminPassw0rd!");
+		when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.empty());
+		when(passwordEncoder.encode("AdminPassw0rd!")).thenReturn("hashed-secret");
+
+		config.run(null);
+
+		ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+		verify(userRepository).save(captor.capture());
+		assertThat(captor.getValue().getEmail()).isEqualTo("admin@example.com");
+	}
+
+	@Test
+	void skipsWhenPasswordNotCompliant() {
+		AdminBootstrapConfig config = configWith("admin@example.com", "weakpass");
+
+		config.run(null);
+
+		verify(userRepository, never()).findByEmail(any());
+		verify(userRepository, never()).save(any());
+	}
+
+	@Test
 	void skipsWhenUserAlreadyExists() {
 		AdminBootstrapConfig config = configWith("admin@example.com", "AdminPassw0rd!");
 		when(userRepository.findByEmail("admin@example.com"))

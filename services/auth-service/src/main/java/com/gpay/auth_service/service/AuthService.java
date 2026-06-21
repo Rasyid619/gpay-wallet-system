@@ -22,6 +22,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,13 +73,14 @@ public class AuthService {
 	 */
 	@Transactional
 	public RegisterResponse register(RegisterRequest request) {
-		if (userRepository.findByEmail(request.email()).isPresent()) {
+		String email = normalizeEmail(request.email());
+		if (userRepository.findByEmail(email).isPresent()) {
 			throw new ConflictException("Email is already registered");
 		}
 
 		Instant now = Instant.now();
 		String passwordHash = passwordEncoder.encode(request.password());
-		User user = User.create(UUID.randomUUID(), request.email(), passwordHash, UserRole.USER, now, now);
+		User user = User.create(UUID.randomUUID(), email, passwordHash, UserRole.USER, now, now);
 		userRepository.save(user);
 		provisionWalletBestEffort(user.getId(), TraceIdContext.getTraceId());
 
@@ -107,7 +109,7 @@ public class AuthService {
 	 */
 	@Transactional
 	public LoginResponse login(LoginRequest request) {
-		User user = userRepository.findByEmail(request.email())
+		User user = userRepository.findByEmail(normalizeEmail(request.email()))
 				.orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
 		if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -124,6 +126,10 @@ public class AuthService {
 		refreshTokenRepository.save(refreshTokenEntity);
 
 		return new LoginResponse(accessToken, rawRefreshToken);
+	}
+
+	private static String normalizeEmail(String email) {
+		return email.trim().toLowerCase(Locale.ROOT);
 	}
 
 	private String generateRawRefreshToken() {

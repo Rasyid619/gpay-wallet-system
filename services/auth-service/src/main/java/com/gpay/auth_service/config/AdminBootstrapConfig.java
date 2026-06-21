@@ -3,7 +3,9 @@ package com.gpay.auth_service.config;
 import com.gpay.auth_service.entity.User;
 import com.gpay.auth_service.entity.UserRole;
 import com.gpay.auth_service.repository.UserRepository;
+import com.gpay.auth_service.security.PasswordPolicy;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,15 +43,21 @@ public class AdminBootstrapConfig implements ApplicationRunner {
 			return;
 		}
 
-		if (userRepository.findByEmail(email).isPresent()) {
-			log.info("Admin bootstrap skipped: user already exists for email={}", email);
+		if (!PasswordPolicy.isCompliant(password)) {
+			log.warn("Admin bootstrap skipped: ADMIN_BOOTSTRAP_PASSWORD does not meet complexity requirements");
+			return;
+		}
+
+		String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+		if (userRepository.findByEmail(normalizedEmail).isPresent()) {
+			log.info("Admin bootstrap skipped: user already exists for email={}", normalizedEmail);
 			return;
 		}
 
 		Instant now = Instant.now();
 		String passwordHash = passwordEncoder.encode(password);
-		User admin = User.create(UUID.randomUUID(), email, passwordHash, UserRole.ADMIN, now, now);
+		User admin = User.create(UUID.randomUUID(), normalizedEmail, passwordHash, UserRole.ADMIN, now, now);
 		userRepository.save(admin);
-		log.info("Admin bootstrap created ADMIN user for email={}", email);
+		log.info("Admin bootstrap created ADMIN user for email={}", normalizedEmail);
 	}
 }
