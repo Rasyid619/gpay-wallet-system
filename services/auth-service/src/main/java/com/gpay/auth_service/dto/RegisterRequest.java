@@ -1,5 +1,6 @@
 package com.gpay.auth_service.dto;
 
+import com.gpay.auth_service.security.PasswordPolicy;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -17,7 +18,7 @@ public record RegisterRequest(
 		@NotBlank @Email String email,
 		@NotBlank
 		@Pattern(
-				regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z\\d\\s]).{8,}$",
+				regexp = PasswordPolicy.PATTERN,
 				message = "must be at least 8 characters and contain uppercase, lowercase, digit, and special character")
 		String password) {
 }

@@ -132,6 +132,17 @@ class AuthServiceTest {
 
 			verify(passwordEncoder).encode("Password1!");
 		}
+
+		@Test
+		void normalizesEmailBeforeSaving() {
+			when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+			when(passwordEncoder.encode("Password1!")).thenReturn("$2a$hashed");
+			when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+			RegisterResponse response = authService.register(new RegisterRequest("  New@Example.COM ", "Password1!"));
+
+			assertThat(response.email()).isEqualTo("new@example.com");
+		}
 	}
 
 	@Nested
@@ -153,6 +164,22 @@ class AuthServiceTest {
 			assertThat(response.accessToken()).isEqualTo("access.token.jwt");
 			assertThat(response.refreshToken()).isNotBlank();
 			verify(refreshTokenRepository).save(any(RefreshToken.class));
+		}
+
+		@Test
+		void normalizesEmailBeforeLookup() {
+			UUID userId = UUID.randomUUID();
+			User user = User.create(userId, "user@example.com", "$2a$hashed", UserRole.USER, Instant.now(), Instant.now());
+
+			when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+			when(passwordEncoder.matches("secret", "$2a$hashed")).thenReturn(true);
+			when(jwtService.generateAccessToken(userId, "user@example.com", UserRole.USER))
+					.thenReturn("access.token.jwt");
+			when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
+
+			LoginResponse response = authService.login(new LoginRequest("  User@Example.COM ", "secret"));
+
+			assertThat(response.accessToken()).isEqualTo("access.token.jwt");
 		}
 
 		@Test
