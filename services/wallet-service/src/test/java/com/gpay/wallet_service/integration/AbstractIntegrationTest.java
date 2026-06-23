@@ -70,4 +70,24 @@ public abstract class AbstractIntegrationTest {
 				.signWith(signingKey)
 				.compact();
 	}
+
+	/**
+	 * Mints a valid HMAC-SHA256 access token carrying a role claim for the supplied user.
+	 *
+	 * @param userId subject the token authenticates
+	 * @param role   role claim granted to the token, for example {@code ADMIN} or {@code USER}
+	 * @return signed compact JWT string
+	 */
+	protected String createToken(UUID userId, String role) {
+		Instant now = Instant.now();
+		SecretKey signingKey = Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8));
+		return Jwts.builder()
+				.subject(userId.toString())
+				.claim("email", "user@example.com")
+				.claim("role", role)
+				.issuedAt(Date.from(now))
+				.expiration(Date.from(now.plusSeconds(900)))
+				.signWith(signingKey)
+				.compact();
+	}
 }

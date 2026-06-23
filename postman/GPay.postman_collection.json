@@ -2316,6 +2316,120 @@
           }
         },
         {
+          "name": "Admin Get Wallet — Any Owner (expect 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns wallet balance shape', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.wallet_id).to.be.a('string');",
+                  "  pm.expect(body.balance).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/admin/wallets/{{user_a_wallet_id}}",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "admin",
+                "wallets",
+                "{{user_a_wallet_id}}"
+              ]
+            },
+            "description": "Admin/support lookup of any wallet by id, regardless of owner. Requires an ADMIN-role access token in `admin_access_token` (set ADMIN role directly in the auth-service database, then log in to obtain the token)."
+          }
+        },
+        {
+          "name": "Admin Get Wallet — Non-Admin (expect 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Forbidden error shape', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.trace_id).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/admin/wallets/{{user_a_wallet_id}}",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "admin",
+                "wallets",
+                "{{user_a_wallet_id}}"
+              ]
+            },
+            "description": "Expected: 403 Forbidden. An authenticated USER-role token may not access admin wallet lookup; only ADMIN-role tokens are allowed."
+          }
+        },
+        {
+          "name": "Admin Get Wallet — No Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Unauthorized error shape', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('UNAUTHORIZED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{wallet_url}}/admin/wallets/{{user_a_wallet_id}}",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "admin",
+                "wallets",
+                "{{user_a_wallet_id}}"
+              ]
+            },
+            "description": "Expected: 401 Unauthorized when no Bearer token is supplied to the admin wallet lookup."
+          }
+        },
+        {
           "name": "Internal Provision Wallet",
           "event": [
             {
