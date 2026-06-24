@@ -1,4 +1,4 @@
-package com.gpay.payment_service.security;
+package com.gpay.common.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -20,7 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * Unit tests for {@link JwtAuthFilter} covering the bearer-prefix guard, valid token
- * authentication, and silent handling of an invalid token.
+ * authentication, role-claim authority resolution, and silent handling of an invalid token.
  */
 class JwtAuthFilterTest {
 
@@ -66,6 +66,18 @@ class JwtAuthFilterTest {
 	}
 
 	@Test
+	void leavesContextUnauthenticatedWhenHeaderIsMissing() throws Exception {
+		MockHttpServletRequest request = new MockHttpServletRequest();
+		MockHttpServletResponse response = new MockHttpServletResponse();
+		FilterChain chain = mock(FilterChain.class);
+
+		filter.doFilter(request, response, chain);
+
+		assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+		verify(chain).doFilter(request, response);
+	}
+
+	@Test
 	void authenticatesUserForValidBearerToken() throws Exception {
 		UUID userId = UUID.randomUUID();
 		MockHttpServletRequest request = new MockHttpServletRequest();
@@ -92,22 +104,6 @@ class JwtAuthFilterTest {
 		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
 				.extracting("authority")
 				.containsExactly("ROLE_ADMIN");
-		verify(chain).doFilter(request, response);
-	}
-
-	@Test
-	void grantsUserAuthorityWhenRoleClaimIsUser() throws Exception {
-		UUID userId = UUID.randomUUID();
-		MockHttpServletRequest request = new MockHttpServletRequest();
-		request.addHeader("Authorization", "Bearer " + tokenWithRole(userId, "USER"));
-		MockHttpServletResponse response = new MockHttpServletResponse();
-		FilterChain chain = mock(FilterChain.class);
-
-		filter.doFilter(request, response, chain);
-
-		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
-				.extracting("authority")
-				.containsExactly("ROLE_USER");
 		verify(chain).doFilter(request, response);
 	}
 

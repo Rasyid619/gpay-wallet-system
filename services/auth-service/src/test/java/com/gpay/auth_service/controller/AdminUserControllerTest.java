@@ -11,9 +11,8 @@ import com.gpay.auth_service.config.SecurityConfig;
 import com.gpay.auth_service.dto.UserLookupResponse;
 import com.gpay.auth_service.exception.GlobalExceptionHandler;
 import com.gpay.auth_service.exception.NotFoundException;
-import com.gpay.auth_service.security.JwtAuthFilter;
-import com.gpay.auth_service.security.JwtService;
 import com.gpay.auth_service.service.UserLookupService;
+import com.gpay.common.security.SecurityAutoConfiguration;
 import com.gpay.common.tracing.TraceIdFilter;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -33,7 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /* MVC tests for admin user lookup access control and response shaping. */
 @WebMvcTest(AdminUserController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class, TraceIdFilter.class})
+@Import({SecurityConfig.class, SecurityAutoConfiguration.class, GlobalExceptionHandler.class, TraceIdFilter.class})
 @TestPropertySource(properties = {
 	"jwt.secret=test-secret-minimum-32-characters-long",
 	"jwt.access-token-expiration-minutes=15"

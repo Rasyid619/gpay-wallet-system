@@ -10,8 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.gpay.wallet_service.config.SecurityConfig;
+import com.gpay.common.security.SecurityAutoConfiguration;
 import com.gpay.common.tracing.TraceIdFilter;
+import com.gpay.wallet_service.config.SecurityConfig;
 import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.TransferRequest;
 import com.gpay.wallet_service.dto.TransferResponse;
@@ -20,8 +21,6 @@ import com.gpay.wallet_service.dto.WalletMutationPageResponse;
 import com.gpay.wallet_service.dto.WalletMutationResponse;
 import com.gpay.wallet_service.exception.GlobalExceptionHandler;
 import com.gpay.wallet_service.exception.WalletNotFoundException;
-import com.gpay.wallet_service.security.JwtAuthFilter;
-import com.gpay.wallet_service.security.JwtService;
 import com.gpay.wallet_service.service.WalletBalanceService;
 import com.gpay.wallet_service.service.WalletMutationService;
 import com.gpay.wallet_service.service.WalletTransferService;
@@ -48,7 +47,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * MVC tests for authenticated wallet endpoint access.
  */
 @WebMvcTest(WalletController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class, TraceIdFilter.class})
+@Import({SecurityConfig.class, SecurityAutoConfiguration.class, GlobalExceptionHandler.class, TraceIdFilter.class})
 @TestPropertySource(properties = "jwt.secret=test-secret-minimum-32-characters-long")
 class WalletControllerTest {
 
