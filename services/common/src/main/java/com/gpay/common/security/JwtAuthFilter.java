@@ -1,4 +1,4 @@
-package com.gpay.wallet_service.security;
+package com.gpay.common.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -9,27 +9,27 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Authenticates wallet-service requests when a valid Bearer access token is present.
+ * Authenticates requests when a valid Bearer access token is present.
  *
  * <p>The authenticated principal is the user UUID from the token subject.
  */
-@Component
-@RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
 	private static final String BEARER_PREFIX = "Bearer ";
 	private static final String DEFAULT_ROLE = "USER";
 
 	private final JwtService jwtService;
+
+	public JwtAuthFilter(JwtService jwtService) {
+		this.jwtService = jwtService;
+	}
 
 	@Override
 	protected void doFilterInternal(

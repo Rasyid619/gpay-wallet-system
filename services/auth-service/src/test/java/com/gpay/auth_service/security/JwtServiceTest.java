@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.gpay.auth_service.entity.UserRole;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +23,11 @@ class JwtServiceTest {
 
 		String token = jwtService.generateAccessToken(userId, "admin@example.com", UserRole.ADMIN);
 
-		Claims claims = jwtService.parseToken(token);
+		Claims claims = Jwts.parser()
+				.verifyWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+				.build()
+				.parseSignedClaims(token)
+				.getPayload();
 		assertThat(claims.get("role", String.class)).isEqualTo("ADMIN");
 		assertThat(claims.getSubject()).isEqualTo(userId.toString());
 		assertThat(claims.get("email", String.class)).isEqualTo("admin@example.com");

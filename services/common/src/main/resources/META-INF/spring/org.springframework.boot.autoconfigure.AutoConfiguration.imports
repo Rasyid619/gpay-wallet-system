@@ -1,1 +1,2 @@
 com.gpay.common.tracing.TracingAutoConfiguration
+com.gpay.common.security.SecurityAutoConfiguration

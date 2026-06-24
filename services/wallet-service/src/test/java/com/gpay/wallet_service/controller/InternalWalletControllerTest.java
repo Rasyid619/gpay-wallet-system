@@ -8,13 +8,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.gpay.wallet_service.config.SecurityConfig;
+import com.gpay.common.security.SecurityAutoConfiguration;
 import com.gpay.common.tracing.TraceIdFilter;
+import com.gpay.wallet_service.config.SecurityConfig;
 import com.gpay.wallet_service.dto.InternalWalletProvisionRequest;
 import com.gpay.wallet_service.dto.InternalWalletProvisionResponse;
 import com.gpay.wallet_service.exception.GlobalExceptionHandler;
-import com.gpay.wallet_service.security.JwtAuthFilter;
-import com.gpay.wallet_service.security.JwtService;
 import com.gpay.wallet_service.service.InternalWalletProvisionService;
 import java.time.Instant;
 import java.util.UUID;
@@ -31,7 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * MVC tests for internal wallet provision access.
  */
 @WebMvcTest(InternalWalletController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class, JwtService.class, GlobalExceptionHandler.class, TraceIdFilter.class})
+@Import({SecurityConfig.class, SecurityAutoConfiguration.class, GlobalExceptionHandler.class, TraceIdFilter.class})
 @TestPropertySource(properties = "jwt.secret=test-secret-minimum-32-characters-long")
 class InternalWalletControllerTest {
 

@@ -27,15 +27,18 @@ class AdminBootstrapIntegrationTest extends AbstractIntegrationTest {
 	private final AdminBootstrapConfig adminBootstrapConfig;
 	private final UserRepository userRepository;
 	private final JwtService jwtService;
+	private final com.gpay.common.security.JwtService jwtValidator;
 
 	@Autowired
 	AdminBootstrapIntegrationTest(
 			AdminBootstrapConfig adminBootstrapConfig,
 			UserRepository userRepository,
-			JwtService jwtService) {
+			JwtService jwtService,
+			com.gpay.common.security.JwtService jwtValidator) {
 		this.adminBootstrapConfig = adminBootstrapConfig;
 		this.userRepository = userRepository;
 		this.jwtService = jwtService;
+		this.jwtValidator = jwtValidator;
 	}
 
 	@Test
@@ -46,7 +49,7 @@ class AdminBootstrapIntegrationTest extends AbstractIntegrationTest {
 		assertThat(admin.getRole()).isEqualTo(UserRole.ADMIN);
 
 		String accessToken = jwtService.generateAccessToken(admin.getId(), admin.getEmail(), admin.getRole());
-		Claims claims = jwtService.parseToken(accessToken);
+		Claims claims = jwtValidator.parseToken(accessToken);
 		assertThat(claims.get("role", String.class)).isEqualTo("ADMIN");
 	}
 
