@@ -2,6 +2,7 @@ package com.gpay.auth_service.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gpay.auth_service.security.JwtAuthFilter;
+import com.gpay.common.tracing.TraceIdAccessDeniedHandler;
 import com.gpay.common.tracing.TraceIdAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -26,14 +27,17 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain filterChain(
 			HttpSecurity http,
-			TraceIdAuthenticationEntryPoint authenticationEntryPoint) throws Exception {
+			TraceIdAuthenticationEntryPoint authenticationEntryPoint,
+			TraceIdAccessDeniedHandler accessDeniedHandler) throws Exception {
 		http
 				.csrf(AbstractHttpConfigurer::disable)
 				.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.exceptionHandling(ex -> ex
-						.authenticationEntryPoint(authenticationEntryPoint))
+						.authenticationEntryPoint(authenticationEntryPoint)
+						.accessDeniedHandler(accessDeniedHandler))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/auth/login", "/auth/register", "/auth/refresh").permitAll()
+						.requestMatchers("/admin/**").hasRole("ADMIN")
 						.anyRequest().authenticated())
 				.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 		return http.build();
@@ -42,6 +46,11 @@ public class SecurityConfig {
 	@Bean
 	public TraceIdAuthenticationEntryPoint traceIdAuthenticationEntryPoint(ObjectMapper objectMapper) {
 		return new TraceIdAuthenticationEntryPoint(objectMapper);
+	}
+
+	@Bean
+	public TraceIdAccessDeniedHandler traceIdAccessDeniedHandler(ObjectMapper objectMapper) {
+		return new TraceIdAccessDeniedHandler(objectMapper);
 	}
 
 	@Bean

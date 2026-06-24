@@ -139,6 +139,40 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /admin/users/{id}:
+    get:
+      tags:
+        - Auth
+      summary: Look up any user by id.
+      description: Admin lookup of any user's non-sensitive profile. Requires an access token whose role claim is ADMIN; authenticated non-admin users receive 403.
+      servers:
+        - url: http://localhost:8081
+          description: Local Auth Service.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
+        - name: id
+          in: path
+          required: true
+          description: User identifier.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User was found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserLookupShowResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /wallets/balance:
     get:
       tags:
@@ -719,6 +753,27 @@ components:
         - created_at
       properties:
         user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          example: USER
+        created_at:
+          type: string
+          format: date-time
+
+    UserLookupShowResponse:
+      type: object
+      required:
+        - id
+        - email
+        - role
+        - created_at
+      properties:
+        id:
           type: string
           format: uuid
         email:
