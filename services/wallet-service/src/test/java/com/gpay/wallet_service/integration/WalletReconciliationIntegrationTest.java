@@ -98,4 +98,64 @@ class WalletReconciliationIntegrationTest extends AbstractIntegrationTest {
 		assertThat(mismatch.getLedgerBalance()).isEqualTo(5_000L);
 		assertThat(mismatch.getDifference()).isEqualTo(5_000L);
 	}
+
+	@Test
+	void recordsMismatchForWalletWithNoLedgerEntries() {
+		Wallet wallet = seedWallet(7_000L);
+
+		WalletReconciliationRunResponse run = reconciliationService.runReconciliation();
+
+		assertThat(run.checkedWalletCount()).isEqualTo(1);
+		assertThat(run.mismatchCount()).isEqualTo(1);
+
+		List<WalletReconciliationMismatch> mismatches = mismatchRepository.findByRunId(run.id());
+		assertThat(mismatches).hasSize(1);
+		WalletReconciliationMismatch mismatch = mismatches.get(0);
+		assertThat(mismatch.getWalletId()).isEqualTo(wallet.getId());
+		assertThat(mismatch.getLedgerBalance()).isZero();
+		assertThat(mismatch.getDifference()).isEqualTo(7_000L);
+	}
+
+	@Test
+	void recordsNegativeDifferenceWhenLedgerExceedsStoredBalance() {
+		Wallet wallet = seedWallet(3_000L);
+		seedTopUpEntry(wallet, LedgerEntryType.CREDIT, 8_000L, 8_000L);
+
+		WalletReconciliationRunResponse run = reconciliationService.runReconciliation();
+
+		assertThat(run.mismatchCount()).isEqualTo(1);
+
+		WalletReconciliationMismatch mismatch =
+				mismatchRepository.findByRunId(run.id()).get(0);
+		assertThat(mismatch.getWalletId()).isEqualTo(wallet.getId());
+		assertThat(mismatch.getStoredBalance()).isEqualTo(3_000L);
+		assertThat(mismatch.getLedgerBalance()).isEqualTo(8_000L);
+		assertThat(mismatch.getDifference()).isEqualTo(-5_000L);
+	}
+
+	@Test
+	void checksEveryWalletAndPersistsOnlyMismatchedOnes() {
+		Wallet matching = seedWallet(10_000L);
+		seedTopUpEntry(matching, LedgerEntryType.CREDIT, 10_000L, 10_000L);
+		Wallet mismatched = seedWallet(10_000L);
+		seedTopUpEntry(mismatched, LedgerEntryType.CREDIT, 4_000L, 4_000L);
+
+		WalletReconciliationRunResponse run = reconciliationService.runReconciliation();
+
+		assertThat(run.checkedWalletCount()).isEqualTo(2);
+		assertThat(run.mismatchCount()).isEqualTo(1);
+
+		List<WalletReconciliationMismatch> mismatches = mismatchRepository.findByRunId(run.id());
+		assertThat(mismatches).hasSize(1);
+		assertThat(mismatches.get(0).getWalletId()).isEqualTo(mismatched.getId());
+	}
+
+	@Test
+	void listsRecentRunsLimitedToRequestedSize() {
+		reconciliationService.runReconciliation();
+		reconciliationService.runReconciliation();
+
+		assertThat(reconciliationService.findRecentRuns(5)).hasSize(2);
+		assertThat(reconciliationService.findRecentRuns(1)).hasSize(1);
+	}
 }
