@@ -47,4 +47,22 @@ public interface WalletRepository extends JpaRepository<Wallet, UUID> {
 			FOR UPDATE
 			""", nativeQuery = true)
 	Optional<Wallet> findByIdForUpdate(@Param("walletId") UUID walletId);
+
+	/**
+	 * Compares every wallet's stored balance against its ledger-derived balance.
+	 *
+	 * <p>The ledger balance sums signed entries (CREDIT positive, DEBIT negative); wallets
+	 * with no ledger entries derive to 0 via the LEFT JOIN. Read-only over both tables.
+	 *
+	 * @return one row per wallet with stored and ledger balances
+	 */
+	@Query(value = """
+			SELECT w.id AS walletId,
+			       w.balance AS storedBalance,
+			       COALESCE(SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE -le.amount END), 0) AS ledgerBalance
+			FROM wallets w
+			LEFT JOIN ledger_entries le ON le.wallet_id = w.id
+			GROUP BY w.id, w.balance
+			""", nativeQuery = true)
+	List<WalletLedgerBalanceProjection> findWalletLedgerBalances();
 }

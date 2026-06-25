@@ -2552,6 +2552,93 @@
           }
         },
         {
+          "name": "Admin Run Reconciliation (expect 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns reconciliation run shape', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.id).to.be.a('string');",
+                  "  pm.expect(body.status).to.eql('COMPLETED');",
+                  "  pm.expect(body.checked_wallet_count).to.be.a('number');",
+                  "  pm.expect(body.mismatch_count).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/admin/reconciliation/run",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "admin",
+                "reconciliation",
+                "run"
+              ]
+            },
+            "description": "Triggers a read-only wallet ledger reconciliation run and returns its summary. Requires an ADMIN-role access token in `admin_access_token`. Never mutates wallet balances."
+          }
+        },
+        {
+          "name": "Admin List Reconciliation Runs (expect 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns an array of runs', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_url}}/admin/reconciliation/runs?limit=20",
+              "host": [
+                "{{wallet_url}}"
+              ],
+              "path": [
+                "admin",
+                "reconciliation",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Lists the most recent reconciliation run summaries, newest first. Requires an ADMIN-role access token in `admin_access_token`."
+          }
+        },
+        {
           "name": "Internal Provision Wallet",
           "event": [
             {
