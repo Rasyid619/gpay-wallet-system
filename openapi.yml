@@ -469,6 +469,65 @@ paths:
         "404":
           $ref: "#/components/responses/WalletNotFound"
 
+  /admin/reconciliation/run:
+    post:
+      tags:
+        - Wallet
+      summary: Trigger a wallet ledger reconciliation run.
+      description: Runs a read-only reconciliation comparing every wallet's stored balance against its ledger-derived balance, recording a run summary and any mismatches. Never mutates wallet balances. Requires an access token whose role claim is ADMIN; authenticated non-admin users receive 403.
+      servers:
+        - url: http://localhost:8082
+          description: Local Wallet Service.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
+      responses:
+        "200":
+          description: Reconciliation run completed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletReconciliationRunShowResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/reconciliation/runs:
+    get:
+      tags:
+        - Wallet
+      summary: List recent wallet reconciliation runs.
+      description: Returns the most recent reconciliation run summaries, newest first. Requires an access token whose role claim is ADMIN; authenticated non-admin users receive 403.
+      servers:
+        - url: http://localhost:8082
+          description: Local Wallet Service.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TraceId"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of runs to return.
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent reconciliation runs were returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WalletReconciliationRunShowResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /mock-gateway/top-up:
     post:
       tags:
@@ -800,6 +859,46 @@ components:
           format: int64
           description: Current balance in whole IDR.
           example: 125000
+
+    WalletReconciliationRunShowResponse:
+      type: object
+      required:
+        - id
+        - status
+        - started_at
+        - checked_wallet_count
+        - mismatch_count
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - STARTED
+            - COMPLETED
+            - FAILED
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        checked_wallet_count:
+          type: integer
+          description: Number of wallets compared in the run.
+          example: 1024
+        mismatch_count:
+          type: integer
+          description: Number of wallets whose stored balance differed from the ledger.
+          example: 0
+        duration_ms:
+          type: integer
+          format: int64
+          nullable: true
+          description: Elapsed run duration in milliseconds.
+          example: 320
 
     WalletMutationIndexResponse:
       type: object

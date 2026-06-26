@@ -42,10 +42,13 @@ public abstract class AbstractIntegrationTest {
 		registry.add("jwt.secret", () -> JWT_SECRET);
 		registry.add("wallet.internal-token", () -> INTERNAL_TOKEN);
 		registry.add("wallet.transfer.max-daily-transfer-amount", () -> String.valueOf(MAX_DAILY_TRANSFER_AMOUNT));
+		registry.add("wallet.reconciliation.enabled", () -> "false");
 	}
 
 	@BeforeEach
 	void cleanDatabase() {
+		jdbcTemplate.update("DELETE FROM wallet_reconciliation_mismatches");
+		jdbcTemplate.update("DELETE FROM wallet_reconciliation_runs");
 		jdbcTemplate.update("DELETE FROM ledger_entries");
 		jdbcTemplate.update("DELETE FROM transfers");
 		jdbcTemplate.update("DELETE FROM idempotency_keys");
