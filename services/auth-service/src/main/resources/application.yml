@@ -29,6 +29,7 @@ jwt:
   refresh-token-expiration-days: ${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:7}
 
 auth:
+  internal-token: ${AUTH_INTERNAL_TOKEN:change-this-auth-internal-token}
   wallet:
     provision-url: ${AUTH_WALLET_PROVISION_URL:http://localhost:8082/internal/wallets/provision}
     internal-token: ${AUTH_WALLET_INTERNAL_TOKEN:change-this-wallet-internal-token}
