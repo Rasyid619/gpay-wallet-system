@@ -53,6 +53,13 @@ services:
       timeout: 10s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit
+    container_name: gpay-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   auth-service:
     build:
       context: .
@@ -68,6 +75,7 @@ services:
       AUTH_DB_URL: jdbc:postgresql://postgres:5432/auth_db
       AUTH_DB_USERNAME: ${AUTH_DB_USERNAME:-gpay}
       AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-gpay}
+      AUTH_INTERNAL_TOKEN: ${AUTH_INTERNAL_TOKEN:-change-this-auth-internal-token}
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-minimum-32-characters-long}
       JWT_ACCESS_TOKEN_EXPIRATION_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-15}
       JWT_REFRESH_TOKEN_EXPIRATION_DAYS: ${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-7}
@@ -137,6 +145,35 @@ services:
       PAYMENT_OUTBOX_WORKER_INITIAL_DELAY_MS: ${PAYMENT_OUTBOX_WORKER_INITIAL_DELAY_MS:-5000}
     ports:
       - "8083:8083"
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    image: gpay-notification-service:local
+    container_name: gpay-notification-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      auth-service:
+        condition: service_started
+    environment:
+      NOTIFICATION_DB_URL: jdbc:postgresql://postgres:5432/notification_db
+      NOTIFICATION_DB_USERNAME: ${NOTIFICATION_DB_USERNAME:-gpay}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-gpay}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      NOTIFICATION_MAIL_HOST: mailpit
+      NOTIFICATION_MAIL_PORT: 1025
+      NOTIFICATION_MAIL_FROM_ADDRESS: ${NOTIFICATION_MAIL_FROM_ADDRESS:-no-reply@gpay.local}
+      NOTIFICATION_AUTH_USER_LOOKUP_URL: http://auth-service:8081/internal/users
+      NOTIFICATION_AUTH_INTERNAL_TOKEN: ${AUTH_INTERNAL_TOKEN:-change-this-auth-internal-token}
+      NOTIFICATION_AUTH_TIMEOUT_MS: ${NOTIFICATION_AUTH_TIMEOUT_MS:-5000}
+    ports:
+      - "8085:8085"
 
   mock-gateway-service:
     build:
