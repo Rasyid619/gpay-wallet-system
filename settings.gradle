@@ -5,9 +5,11 @@ include ':auth-service'
 include ':wallet-service'
 include ':payment-service'
 include ':mock-gateway-service'
+include ':notification-service'
 
 project(':common').projectDir = file('services/common')
 project(':auth-service').projectDir = file('services/auth-service')
 project(':wallet-service').projectDir = file('services/wallet-service')
 project(':payment-service').projectDir = file('services/payment-service')
 project(':mock-gateway-service').projectDir = file('services/mock-gateway-service')
+project(':notification-service').projectDir = file('services/notification-service')

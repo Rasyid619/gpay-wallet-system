@@ -1,0 +1,48 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: notification-service
+
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notification_db}
+    username: ${NOTIFICATION_DB_USERNAME:gpay}
+    password: ${NOTIFICATION_DB_PASSWORD:gpay}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${NOTIFICATION_KAFKA_CONSUMER_GROUP_ID:notification-service}
+
+notification:
+  kafka:
+    transfer-completed-topic: ${NOTIFICATION_KAFKA_TRANSFER_COMPLETED_TOPIC:wallet.transfer.completed}
+    transfer-received-topic: ${NOTIFICATION_KAFKA_TRANSFER_RECEIVED_TOPIC:wallet.transfer.received}
+    transfer-failed-topic: ${NOTIFICATION_KAFKA_TRANSFER_FAILED_TOPIC:wallet.transfer.failed}
+    topup-succeeded-topic: ${NOTIFICATION_KAFKA_TOPUP_SUCCEEDED_TOPIC:payment.topup.succeeded}
+    topup-failed-topic: ${NOTIFICATION_KAFKA_TOPUP_FAILED_TOPIC:payment.topup.failed}
+    dead-letter-topic: ${NOTIFICATION_KAFKA_DEAD_LETTER_TOPIC:dead-letter.events}
+  mail:
+    host: ${NOTIFICATION_MAIL_HOST:localhost}
+    port: ${NOTIFICATION_MAIL_PORT:1025}
+    from-address: ${NOTIFICATION_MAIL_FROM_ADDRESS:no-reply@gpay.local}
+  auth:
+    user-lookup-url: ${NOTIFICATION_AUTH_USER_LOOKUP_URL:http://localhost:8081/internal/users}
+    internal-token: ${NOTIFICATION_AUTH_INTERNAL_TOKEN:change-this-auth-internal-token}
+    timeout-ms: ${NOTIFICATION_AUTH_TIMEOUT_MS:5000}
+  retry:
+    max-attempts: ${NOTIFICATION_RETRY_MAX_ATTEMPTS:10}

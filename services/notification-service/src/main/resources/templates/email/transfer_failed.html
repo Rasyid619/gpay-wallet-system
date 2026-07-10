@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transfer failed</title>
+</head>
+<body>
+    <p>Hi <span th:text="${recipient_email}">user@example.com</span>,</p>
+    <p>
+        Your transfer of <strong th:text="${formatted_amount}">Rp10,000</strong>
+        could not be completed.
+    </p>
+    <p th:if="${failure_reason}">Reason: <span th:text="${failure_reason}">reason</span></p>
+    <p>Transfer reference: <span th:text="${transaction_id}">00000000-0000-0000-0000-000000000000</span></p>
+    <hr>
+    <p style="color: #888; font-size: 12px;">
+        Trace ID: <span th:text="${trace_id}">trace</span>
+    </p>
+</body>
+</html>
