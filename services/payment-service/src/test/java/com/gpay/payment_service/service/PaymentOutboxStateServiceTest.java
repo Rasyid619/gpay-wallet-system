@@ -11,6 +11,8 @@ import com.gpay.payment_service.config.PaymentOutboxProperties;
 import com.gpay.payment_service.constant.OutboxEventStatus;
 import com.gpay.payment_service.constant.OutboxEventType;
 import com.gpay.payment_service.dto.ClaimedOutboxEvent;
+import com.gpay.payment_service.dto.ClaimedTopupOutboxEvent;
+import com.gpay.payment_service.dto.TopupEventOutboxPayload;
 import com.gpay.payment_service.dto.WalletCreditOutboxPayload;
 import com.gpay.payment_service.entity.OutboxEvent;
 import com.gpay.payment_service.entity.TopupTransaction;
@@ -162,6 +164,77 @@ class PaymentOutboxStateServiceTest {
 	}
 
 	@Test
+	void claimTopupEventReturnsNullWhenEventIsMissing() {
+		PaymentOutboxStateService service = newService(outboxProperties(10, 60_000L));
+		UUID eventId = UUID.randomUUID();
+		when(outboxEventRepository.findLockedById(eventId)).thenReturn(Optional.empty());
+
+		assertThat(service.claimTopupEvent(eventId)).isNull();
+	}
+
+	@Test
+	void claimTopupEventReturnsNullWhenEventIsNotPending() {
+		PaymentOutboxStateService service = newService(outboxProperties(10, 60_000L));
+		OutboxEvent event = pendingTopupEvent(Instant.now());
+		event.markProcessing(Instant.now());
+		when(outboxEventRepository.findLockedById(event.getId())).thenReturn(Optional.of(event));
+
+		assertThat(service.claimTopupEvent(event.getId())).isNull();
+	}
+
+	@Test
+	void claimTopupEventReturnsNullWhenRetryIsStillInTheFuture() {
+		PaymentOutboxStateService service = newService(outboxProperties(10, 60_000L));
+		OutboxEvent event = pendingTopupEvent(Instant.now());
+		event.markFailedAttempt("retry-later", Instant.now().plus(Duration.ofMinutes(5)), Instant.now());
+		when(outboxEventRepository.findLockedById(event.getId())).thenReturn(Optional.of(event));
+
+		assertThat(service.claimTopupEvent(event.getId())).isNull();
+	}
+
+	@Test
+	void claimTopupEventMarksProcessingAndReturnsPayloadWithTraceId() throws Exception {
+		PaymentOutboxStateService service = newService(outboxProperties(10, 60_000L));
+		OutboxEvent event = pendingTopupEvent(Instant.now().minusSeconds(1));
+		UUID aggregateId = event.getAggregateId();
+		TopupEventOutboxPayload payload = new TopupEventOutboxPayload(
+				aggregateId, UUID.randomUUID(), UUID.randomUUID(), 75_000L, null);
+		TopupTransaction transaction = TopupTransaction.createPending(
+				aggregateId,
+				payload.userId(),
+				payload.walletId(),
+				75_000L,
+				"key",
+				"trace-topup-claim",
+				Instant.now());
+		when(outboxEventRepository.findLockedById(event.getId())).thenReturn(Optional.of(event));
+		when(objectMapper.readValue("{}", TopupEventOutboxPayload.class)).thenReturn(payload);
+		when(topupTransactionRepository.findById(aggregateId)).thenReturn(Optional.of(transaction));
+
+		ClaimedTopupOutboxEvent claimed = service.claimTopupEvent(event.getId());
+
+		assertThat(claimed).isNotNull();
+		assertThat(claimed.eventId()).isEqualTo(event.getId());
+		assertThat(claimed.eventType()).isEqualTo(OutboxEventType.TOPUP_SUCCEEDED);
+		assertThat(claimed.payload()).isEqualTo(payload);
+		assertThat(claimed.traceId()).isEqualTo("trace-topup-claim");
+		assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PROCESSING);
+	}
+
+	@Test
+	void claimTopupEventWrapsInvalidPayloadAsIllegalState() throws Exception {
+		PaymentOutboxStateService service = newService(outboxProperties(10, 60_000L));
+		OutboxEvent event = pendingTopupEvent(Instant.now().minusSeconds(1));
+		when(outboxEventRepository.findLockedById(event.getId())).thenReturn(Optional.of(event));
+		lenient().when(objectMapper.readValue("{}", TopupEventOutboxPayload.class))
+				.thenThrow(new JsonProcessingException("bad") {});
+
+		assertThatThrownBy(() -> service.claimTopupEvent(event.getId()))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("Outbox payload is invalid");
+	}
+
+	@Test
 	void recoverStaleProcessingIgnoresEventThatIsNoLongerStale() {
 		PaymentOutboxStateService service = newService(outboxProperties(10, 60_000L));
 		OutboxEvent event = pendingEvent(Instant.now());
@@ -291,6 +364,15 @@ class PaymentOutboxStateServiceTest {
 		return OutboxEvent.createPending(
 				UUID.randomUUID(),
 				OutboxEventType.CREDIT_WALLET_REQUESTED,
+				UUID.randomUUID(),
+				"{}",
+				createdAt);
+	}
+
+	private OutboxEvent pendingTopupEvent(Instant createdAt) {
+		return OutboxEvent.createPending(
+				UUID.randomUUID(),
+				OutboxEventType.TOPUP_SUCCEEDED,
 				UUID.randomUUID(),
 				"{}",
 				createdAt);

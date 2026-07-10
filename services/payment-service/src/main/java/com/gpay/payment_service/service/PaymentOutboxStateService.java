@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gpay.payment_service.config.PaymentOutboxProperties;
 import com.gpay.payment_service.constant.OutboxEventStatus;
 import com.gpay.payment_service.dto.ClaimedOutboxEvent;
+import com.gpay.payment_service.dto.ClaimedTopupOutboxEvent;
+import com.gpay.payment_service.dto.TopupEventOutboxPayload;
 import com.gpay.payment_service.dto.WalletCreditOutboxPayload;
 import com.gpay.payment_service.entity.OutboxEvent;
 import com.gpay.payment_service.entity.TopupTransaction;
@@ -46,6 +48,32 @@ public class PaymentOutboxStateService {
 				.map(TopupTransaction::getTraceId)
 				.orElse(null);
 		return new ClaimedOutboxEvent(event.getId(), payload, traceId);
+	}
+
+	/**
+	 * Claims a due pending top-up result event by locking the row and marking it
+	 * PROCESSING.
+	 *
+	 * @param eventId outbox event identifier
+	 * @return the claimed event, or {@code null} when it is no longer claimable
+	 */
+	@Transactional
+	public ClaimedTopupOutboxEvent claimTopupEvent(UUID eventId) {
+		OutboxEvent event = outboxEventRepository.findLockedById(eventId).orElse(null);
+		if (event == null || event.getStatus() != OutboxEventStatus.PENDING) {
+			return null;
+		}
+		Instant now = Instant.now();
+		if (event.getNextRetryAt() != null && event.getNextRetryAt().isAfter(now)) {
+			return null;
+		}
+
+		event.markProcessing(now);
+		TopupEventOutboxPayload payload = readTopupPayload(event.getPayload());
+		String traceId = topupTransactionRepository.findById(event.getAggregateId())
+				.map(TopupTransaction::getTraceId)
+				.orElse(null);
+		return new ClaimedTopupOutboxEvent(event.getId(), event.getEventType(), payload, traceId);
 	}
 
 	@Transactional
@@ -110,6 +138,14 @@ public class PaymentOutboxStateService {
 	private WalletCreditOutboxPayload readPayload(String payload) {
 		try {
 			return objectMapper.readValue(payload, WalletCreditOutboxPayload.class);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Outbox payload is invalid", ex);
+		}
+	}
+
+	private TopupEventOutboxPayload readTopupPayload(String payload) {
+		try {
+			return objectMapper.readValue(payload, TopupEventOutboxPayload.class);
 		} catch (JsonProcessingException ex) {
 			throw new IllegalStateException("Outbox payload is invalid", ex);
 		}

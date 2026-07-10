@@ -44,8 +44,10 @@ public class PaymentWebhookService {
 		if (request.status() == PaymentStatus.SUCCESS) {
 			transaction.markSuccess(request.gatewayReference(), now);
 			paymentOutboxService.enqueueWalletCredit(transaction, now);
+			paymentOutboxService.enqueueTopupResult(transaction, now);
 		} else if (request.status() == PaymentStatus.FAILED) {
 			transaction.markFailed(request.gatewayReference(), "Gateway reported payment failure", now);
+			paymentOutboxService.enqueueTopupResult(transaction, now);
 		} else {
 			throw new BadRequestException("Gateway webhook status must be SUCCESS or FAILED");
 		}
