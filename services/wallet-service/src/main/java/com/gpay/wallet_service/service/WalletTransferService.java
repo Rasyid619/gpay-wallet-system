@@ -51,6 +51,7 @@ public class WalletTransferService {
 	private final LedgerEntryRepository ledgerEntryRepository;
 	private final ObjectMapper objectMapper;
 	private final TransferRepository transferRepository;
+	private final WalletOutboxService walletOutboxService;
 	private final WalletProvisioner walletProvisioner;
 	private final WalletRepository walletRepository;
 	@Value("${wallet.transfer.max-daily-transfer-amount}")
@@ -201,6 +202,12 @@ public class WalletTransferService {
 				TransferStatus.SUCCESS,
 				null,
 				now));
+		walletOutboxService.enqueueTransferResult(
+				transfer,
+				userId,
+				receiverWallet.getUserId(),
+				traceId,
+				now);
 
 		senderWallet.debit(request.amount(), now);
 		receiverWallet.credit(request.amount(), now);
@@ -253,7 +260,7 @@ public class WalletTransferService {
 			String message,
 			String traceId,
 			Instant now) {
-		transferRepository.save(Transfer.create(
+		Transfer transfer = transferRepository.save(Transfer.create(
 				UUID.randomUUID(),
 				senderWallet,
 				receiverWallet,
@@ -261,6 +268,12 @@ public class WalletTransferService {
 				TransferStatus.FAILED,
 				error,
 				now));
+		walletOutboxService.enqueueTransferResult(
+				transfer,
+				userId,
+				receiverWallet.getUserId(),
+				traceId,
+				now);
 		return storeErrorResponse(
 				idempotencyKey,
 				userId,

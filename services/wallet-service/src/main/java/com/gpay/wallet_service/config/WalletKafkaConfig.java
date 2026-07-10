@@ -1,6 +1,7 @@
 package com.gpay.wallet_service.config;
 
 import com.gpay.wallet_service.dto.InternalWalletCreditRequest;
+import com.gpay.wallet_service.dto.TransferEventOutboxPayload;
 import com.gpay.wallet_service.exception.BadRequestException;
 import com.gpay.wallet_service.exception.IdempotencyConflictException;
 import com.gpay.wallet_service.exception.InternalAuthenticationException;
@@ -28,6 +29,7 @@ import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
 
 /**
@@ -81,6 +83,24 @@ public class WalletKafkaConfig {
 		factory.setCommonErrorHandler(walletCreditErrorHandler);
 		factory.getContainerProperties().setAckMode(AckMode.RECORD);
 		return factory;
+	}
+
+	@Bean
+	public ProducerFactory<String, TransferEventOutboxPayload> transferEventProducerFactory() {
+		Map<String, Object> config = new HashMap<>();
+		config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+		config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+		config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+		config.put(ProducerConfig.ACKS_CONFIG, "all");
+		config.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+		config.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+		return new DefaultKafkaProducerFactory<>(config);
+	}
+
+	@Bean
+	public KafkaTemplate<String, TransferEventOutboxPayload> transferEventKafkaTemplate(
+			ProducerFactory<String, TransferEventOutboxPayload> transferEventProducerFactory) {
+		return new KafkaTemplate<>(transferEventProducerFactory);
 	}
 
 	@Bean

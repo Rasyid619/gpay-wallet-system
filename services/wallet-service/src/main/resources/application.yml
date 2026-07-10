@@ -41,3 +41,14 @@ wallet:
   kafka:
     wallet-credit-commands-topic: ${WALLET_KAFKA_WALLET_CREDIT_COMMANDS_TOPIC:wallet.credit.commands}
     dead-letter-topic: ${WALLET_KAFKA_DEAD_LETTER_TOPIC:dead-letter.events}
+    transfer-completed-topic: ${WALLET_KAFKA_TRANSFER_COMPLETED_TOPIC:wallet.transfer.completed}
+    transfer-received-topic: ${WALLET_KAFKA_TRANSFER_RECEIVED_TOPIC:wallet.transfer.received}
+    transfer-failed-topic: ${WALLET_KAFKA_TRANSFER_FAILED_TOPIC:wallet.transfer.failed}
+  outbox:
+    retry-delay-ms: ${WALLET_OUTBOX_RETRY_DELAY_MS:60000}
+    max-attempts: ${WALLET_OUTBOX_MAX_ATTEMPTS:5}
+    max-age-ms: ${WALLET_OUTBOX_MAX_AGE_MS:86400000}
+    processing-timeout-ms: ${WALLET_OUTBOX_PROCESSING_TIMEOUT_MS:300000}
+    batch-size: ${WALLET_OUTBOX_BATCH_SIZE:10}
+    worker-fixed-delay-ms: ${WALLET_OUTBOX_WORKER_FIXED_DELAY_MS:5000}
+    worker-initial-delay-ms: ${WALLET_OUTBOX_WORKER_INITIAL_DELAY_MS:5000}

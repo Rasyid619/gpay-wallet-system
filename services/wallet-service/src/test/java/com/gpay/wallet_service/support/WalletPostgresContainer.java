@@ -22,8 +22,9 @@ public final class WalletPostgresContainer {
 	}
 
 	/**
-	 * Wires the shared container's datasource and disables Kafka listener startup so the
-	 * context boots without a running broker.
+	 * Wires the shared container's datasource, disables Kafka listener startup so the
+	 * context boots without a running broker, and pushes the outbox worker schedule
+	 * far out so it never interferes with test assertions.
 	 *
 	 * @param registry dynamic property registry for the test context
 	 */
@@ -32,5 +33,7 @@ public final class WalletPostgresContainer {
 		registry.add("spring.datasource.username", INSTANCE::getUsername);
 		registry.add("spring.datasource.password", INSTANCE::getPassword);
 		registry.add("spring.kafka.listener.auto-startup", () -> "false");
+		registry.add("wallet.outbox.worker-fixed-delay-ms", () -> "3600000");
+		registry.add("wallet.outbox.worker-initial-delay-ms", () -> "3600000");
 	}
 }
