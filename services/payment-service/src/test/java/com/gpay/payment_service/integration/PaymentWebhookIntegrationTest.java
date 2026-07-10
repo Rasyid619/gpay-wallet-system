@@ -18,8 +18,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /*
  * Integration tests for the unauthenticated gateway webhook, covering HMAC accept/reject, the
- * SUCCESS path that creates exactly one wallet-credit outbox event, the FAILED path that creates
- * none, and the not-found / mismatch failure branches.
+ * SUCCESS path that creates one wallet-credit and one topup-succeeded outbox event, the FAILED
+ * path that creates only a topup-failed event, and the not-found / mismatch failure branches.
  */
 class PaymentWebhookIntegrationTest extends AbstractIntegrationTest {
 
@@ -75,11 +75,13 @@ class PaymentWebhookIntegrationTest extends AbstractIntegrationTest {
 				.isEqualTo("SUCCESS");
 		assertThat(outboxEventRepository.existsByAggregateIdAndEventType(
 				transaction.getId(), OutboxEventType.CREDIT_WALLET_REQUESTED)).isTrue();
-		assertThat(outboxEventRepository.count()).isEqualTo(1);
+		assertThat(outboxEventRepository.existsByAggregateIdAndEventType(
+				transaction.getId(), OutboxEventType.TOPUP_SUCCEEDED)).isTrue();
+		assertThat(outboxEventRepository.count()).isEqualTo(2);
 	}
 
 	@Test
-	void failedWebhookMarksTransactionFailedAndCreatesNoOutboxEvent() throws Exception {
+	void failedWebhookMarksTransactionFailedAndCreatesOnlyTopupFailedEvent() throws Exception {
 		TopupTransaction transaction = seedPendingTransaction();
 		String body = webhookBody(transaction, "FAILED", "gw-failed");
 
@@ -93,7 +95,11 @@ class PaymentWebhookIntegrationTest extends AbstractIntegrationTest {
 
 		assertThat(topupTransactionRepository.findById(transaction.getId()).orElseThrow().getStatus().name())
 				.isEqualTo("FAILED");
-		assertThat(outboxEventRepository.count()).isZero();
+		assertThat(outboxEventRepository.existsByAggregateIdAndEventType(
+				transaction.getId(), OutboxEventType.TOPUP_FAILED)).isTrue();
+		assertThat(outboxEventRepository.existsByAggregateIdAndEventType(
+				transaction.getId(), OutboxEventType.CREDIT_WALLET_REQUESTED)).isFalse();
+		assertThat(outboxEventRepository.count()).isEqualTo(1);
 	}
 
 	@Test

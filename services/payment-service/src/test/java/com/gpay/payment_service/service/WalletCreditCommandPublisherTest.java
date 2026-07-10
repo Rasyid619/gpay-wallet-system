@@ -28,7 +28,10 @@ class WalletCreditCommandPublisherTest {
 	@SuppressWarnings("unchecked")
 	private final KafkaTemplate<String, WalletCreditOutboxPayload> kafkaTemplate = mock(KafkaTemplate.class);
 
-	private final PaymentKafkaProperties properties = new PaymentKafkaProperties("wallet.credit.commands");
+	private final PaymentKafkaProperties properties = new PaymentKafkaProperties(
+			"wallet.credit.commands",
+			"payment.topup.succeeded",
+			"payment.topup.failed");
 	private final WalletCreditCommandPublisher publisher =
 			new WalletCreditCommandPublisher(kafkaTemplate, properties);
 

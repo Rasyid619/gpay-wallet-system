@@ -44,6 +44,8 @@ payment:
     gateway-secret: ${PAYMENT_GATEWAY_WEBHOOK_SECRET}
   kafka:
     wallet-credit-commands-topic: ${PAYMENT_KAFKA_WALLET_CREDIT_COMMANDS_TOPIC:wallet.credit.commands}
+    topup-succeeded-topic: ${PAYMENT_KAFKA_TOPUP_SUCCEEDED_TOPIC:payment.topup.succeeded}
+    topup-failed-topic: ${PAYMENT_KAFKA_TOPUP_FAILED_TOPIC:payment.topup.failed}
   outbox:
     retry-delay-ms: ${PAYMENT_OUTBOX_RETRY_DELAY_MS}
     max-attempts: ${PAYMENT_OUTBOX_MAX_ATTEMPTS}

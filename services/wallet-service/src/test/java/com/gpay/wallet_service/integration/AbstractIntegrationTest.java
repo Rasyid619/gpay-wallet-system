@@ -50,6 +50,7 @@ public abstract class AbstractIntegrationTest {
 		jdbcTemplate.update("DELETE FROM wallet_reconciliation_mismatches");
 		jdbcTemplate.update("DELETE FROM wallet_reconciliation_runs");
 		jdbcTemplate.update("DELETE FROM ledger_entries");
+		jdbcTemplate.update("DELETE FROM outbox_events");
 		jdbcTemplate.update("DELETE FROM transfers");
 		jdbcTemplate.update("DELETE FROM idempotency_keys");
 		jdbcTemplate.update("DELETE FROM activity_logs");

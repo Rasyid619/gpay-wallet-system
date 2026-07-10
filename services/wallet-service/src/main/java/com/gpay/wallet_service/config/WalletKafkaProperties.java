@@ -9,10 +9,16 @@ import org.springframework.validation.annotation.Validated;
  *
  * @param walletCreditCommandsTopic topic carrying wallet credit commands
  * @param deadLetterTopic           topic for commands that cannot be applied
+ * @param transferCompletedTopic    topic carrying sender-side successful transfer events
+ * @param transferReceivedTopic     topic carrying receiver-side successful transfer events
+ * @param transferFailedTopic       topic carrying failed transfer events
  */
 @Validated
 @ConfigurationProperties(prefix = "wallet.kafka")
 public record WalletKafkaProperties(
 		@NotBlank String walletCreditCommandsTopic,
-		@NotBlank String deadLetterTopic) {
+		@NotBlank String deadLetterTopic,
+		@NotBlank String transferCompletedTopic,
+		@NotBlank String transferReceivedTopic,
+		@NotBlank String transferFailedTopic) {
 }

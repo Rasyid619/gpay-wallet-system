@@ -66,13 +66,20 @@ class PaymentWebhookServiceTest {
 		assertThat(updated.getStatus().name()).isEqualTo("SUCCESS");
 		assertThat(updated.getGatewayReference()).isEqualTo("gw-success");
 		assertThat(updated.getFailureReason()).isNull();
-		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore + 1);
+		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore + 2);
 		var outboxEvent = outboxEventRepository.findAll()
 				.stream()
 				.filter(event -> event.getAggregateId().equals(transaction.getId()))
+				.filter(event -> event.getEventType().name().equals("CREDIT_WALLET_REQUESTED"))
 				.findFirst()
 				.orElseThrow();
-		assertThat(outboxEvent.getEventType().name()).isEqualTo("CREDIT_WALLET_REQUESTED");
+		var topupEvent = outboxEventRepository.findAll()
+				.stream()
+				.filter(event -> event.getAggregateId().equals(transaction.getId()))
+				.filter(event -> event.getEventType().name().equals("TOPUP_SUCCEEDED"))
+				.findFirst()
+				.orElseThrow();
+		assertThat(topupEvent.getStatus().name()).isEqualTo("PENDING");
 		assertThat(outboxEvent.getStatus().name()).isEqualTo("PENDING");
 		assertThat(outboxEvent.getRetryCount()).isZero();
 		assertThat(outboxEvent.getNextRetryAt()).isNotNull();
@@ -105,12 +112,12 @@ class PaymentWebhookServiceTest {
 		paymentWebhookService.processGatewayWebhook(signature, timestamp, rawBody);
 		paymentWebhookService.processGatewayWebhook(signature, timestamp, rawBody);
 
-		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore + 1);
+		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore + 2);
 		assertThat(activityLogRepository.findByTransactionIdOrderByCreatedAtAsc(transaction.getId())).hasSize(1);
 	}
 
 	@Test
-	void validFailedWebhookUpdatesTransactionWithoutOutboxEvent() {
+	void validFailedWebhookUpdatesTransactionAndCreatesOnlyTopupFailedEvent() {
 		TopupTransaction transaction = pendingTransaction();
 		long outboxCountBefore = countOutboxEvents();
 		String rawBody = webhookBody(transaction, "FAILED", "gw-failed");
@@ -124,7 +131,16 @@ class PaymentWebhookServiceTest {
 		assertThat(updated.getStatus().name()).isEqualTo("FAILED");
 		assertThat(updated.getGatewayReference()).isEqualTo("gw-failed");
 		assertThat(updated.getFailureReason()).isEqualTo("Gateway reported payment failure");
-		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore);
+		assertThat(countOutboxEvents()).isEqualTo(outboxCountBefore + 1);
+		var topupFailedEvent = outboxEventRepository.findAll()
+				.stream()
+				.filter(event -> event.getAggregateId().equals(transaction.getId()))
+				.findFirst()
+				.orElseThrow();
+		assertThat(topupFailedEvent.getEventType().name()).isEqualTo("TOPUP_FAILED");
+		var failedPayload = readPayload(topupFailedEvent.getPayload());
+		assertThat(failedPayload.get("user_id").asText()).isEqualTo(transaction.getUserId().toString());
+		assertThat(failedPayload.get("failure_reason").asText()).isEqualTo("Gateway reported payment failure");
 		ActivityLog activityLog = activityLogRepository
 				.findByTransactionIdOrderByCreatedAtAsc(transaction.getId())
 				.getFirst();

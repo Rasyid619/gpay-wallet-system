@@ -25,6 +25,12 @@ public class GlobalExceptionHandler {
 				.body(errorBody("EMAIL_ALREADY_REGISTERED", ex.getMessage()));
 	}
 
+	@ExceptionHandler(InternalAuthenticationException.class)
+	public ResponseEntity<Map<String, String>> handleInternalAuthentication(InternalAuthenticationException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+				.body(errorBody("UNAUTHORIZED", ex.getMessage()));
+	}
+
 	@ExceptionHandler(NotFoundException.class)
 	public ResponseEntity<Map<String, String>> handleNotFound(NotFoundException ex) {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND)

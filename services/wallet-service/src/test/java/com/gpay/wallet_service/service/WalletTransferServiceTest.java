@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.gpay.wallet_service.constant.OutboxEventType;
 import com.gpay.wallet_service.constant.WalletStatus;
 import com.gpay.wallet_service.dto.IdempotentResponse;
 import com.gpay.wallet_service.dto.TransferRequest;
@@ -12,6 +13,8 @@ import com.gpay.wallet_service.entity.Wallet;
 import com.gpay.wallet_service.exception.BadRequestException;
 import com.gpay.wallet_service.exception.IdempotencyConflictException;
 import com.gpay.wallet_service.repository.LedgerEntryRepository;
+import com.gpay.wallet_service.repository.OutboxEventRepository;
+import com.gpay.wallet_service.repository.TransferRepository;
 import com.gpay.wallet_service.repository.WalletRepository;
 import com.gpay.wallet_service.support.WalletPostgresContainer;
 import java.time.Instant;
@@ -42,6 +45,12 @@ class WalletTransferServiceTest {
 
 	@Autowired
 	private LedgerEntryRepository ledgerEntryRepository;
+
+	@Autowired
+	private OutboxEventRepository outboxEventRepository;
+
+	@Autowired
+	private TransferRepository transferRepository;
 
 	@Autowired
 	private WalletRepository walletRepository;
@@ -78,6 +87,49 @@ class WalletTransferServiceTest {
 				receiverWallet.getUserId(),
 				PageRequest.of(0, 20, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))))
 				.getTotalElements()).isEqualTo(1);
+	}
+
+	@Test
+	void successfulTransferEnqueuesSenderAndReceiverOutboxEvents() {
+		UUID senderUserId = UUID.randomUUID();
+		saveWallet(senderUserId, 100L);
+		Wallet receiverWallet = saveWallet(UUID.randomUUID(), 10L);
+
+		IdempotentResponse result = walletTransferService.transfer(
+				senderUserId,
+				"transfer-outbox-success-" + UUID.randomUUID(),
+				new TransferRequest(receiverWallet.getId(), 40L),
+				"trace-outbox-success");
+
+		TransferResponse body = (TransferResponse) result.body();
+		assertThat(outboxEventRepository.existsByAggregateIdAndEventType(
+				body.transferId(), OutboxEventType.TRANSFER_COMPLETED)).isTrue();
+		assertThat(outboxEventRepository.existsByAggregateIdAndEventType(
+				body.transferId(), OutboxEventType.TRANSFER_RECEIVED)).isTrue();
+	}
+
+	@Test
+	void failedTransferEnqueuesTransferFailedOutboxEvent() {
+		UUID senderUserId = UUID.randomUUID();
+		Wallet senderWallet = saveWallet(senderUserId, 30L);
+		Wallet receiverWallet = saveWallet(UUID.randomUUID(), 10L);
+
+		walletTransferService.transfer(
+				senderUserId,
+				"transfer-outbox-failed-" + UUID.randomUUID(),
+				new TransferRequest(receiverWallet.getId(), 40L),
+				"trace-outbox-failed");
+
+		UUID failedTransferId = transferRepository.findAll()
+				.stream()
+				.filter(transfer -> transfer.getSenderWallet().getId().equals(senderWallet.getId()))
+				.findFirst()
+				.orElseThrow()
+				.getId();
+		assertThat(outboxEventRepository.existsByAggregateIdAndEventType(
+				failedTransferId, OutboxEventType.TRANSFER_FAILED)).isTrue();
+		assertThat(outboxEventRepository.existsByAggregateIdAndEventType(
+				failedTransferId, OutboxEventType.TRANSFER_RECEIVED)).isFalse();
 	}
 
 	@Test

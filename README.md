@@ -17,6 +17,7 @@ database, Flyway migrations, and API boundary.
 | Wallet Service | `services/wallet-service` | `wallet_db` | `http://localhost:8082` | Balances, mutations, transfers, internal wallet credit |
 | Payment Service | `services/payment-service` | `payment_db` | `http://localhost:8083` | Top-up lifecycle, gateway webhook handling, rate limiting, bounded outbox retry (events move to `FAILED` after `PAYMENT_OUTBOX_MAX_ATTEMPTS`, once older than `PAYMENT_OUTBOX_MAX_AGE_MS`, or on a non-retryable 4xx) |
 | Mock Gateway Service | `services/mock-gateway-service` | none | `http://localhost:8084` | Local gateway simulation for `SUCCESS`, `FAILED`, and `TIMEOUT` modes |
+| Notification Service | `services/notification-service` | `notification_db` | `http://localhost:8085` | Consumes transfer/top-up result events from Kafka and sends transactional emails via SMTP (Mailpit locally), with idempotent per-event delivery attempts |
 
 The repository also contains a shared `common` library module (`services/common`)
 that holds cross-cutting infrastructure (currently trace ID handling) consumed by
@@ -122,6 +123,8 @@ auth-service         -> http://localhost:8081
 wallet-service       -> http://localhost:8082
 payment-service      -> http://localhost:8083
 mock-gateway-service -> http://localhost:8084
+notification-service -> http://localhost:8085
+mailpit (web UI)     -> http://localhost:8025
 ```
 
 Inside Docker Compose, services use Docker network names:
@@ -130,6 +133,8 @@ Inside Docker Compose, services use Docker network names:
 payment-service -> http://mock-gateway-service:8084/mock-gateway/top-up
 auth-service -> http://wallet-service:8082/internal/wallets/provision
 mock-gateway-service -> http://payment-service:8083/payments/webhook/gateway
+notification-service -> http://auth-service:8081/internal/users/{id}
+notification-service -> mailpit:1025 (SMTP)
 payment-service -> redis:6379
 ```
 
@@ -139,9 +144,10 @@ One PostgreSQL container is used for local development. The init script creates
 one database per owning service:
 
 ```text
-auth_db    -> auth-service only
-wallet_db  -> wallet-service only
-payment_db -> payment-service only
+auth_db         -> auth-service only
+wallet_db       -> wallet-service only
+payment_db      -> payment-service only
+notification_db -> notification-service only
 ```
 
 Each service has its own Flyway migration folder under:
@@ -170,6 +176,7 @@ Auth Service:
 ```text
 AUTH_DB_USERNAME
 AUTH_DB_PASSWORD
+AUTH_INTERNAL_TOKEN
 JWT_SECRET
 JWT_ACCESS_TOKEN_EXPIRATION_MINUTES
 JWT_REFRESH_TOKEN_EXPIRATION_DAYS
@@ -186,6 +193,13 @@ JWT_SECRET
 KAFKA_BOOTSTRAP_SERVERS
 WALLET_INTERNAL_TOKEN
 MAX_DAILY_TRANSFER_AMOUNT
+WALLET_OUTBOX_RETRY_DELAY_MS
+WALLET_OUTBOX_MAX_ATTEMPTS
+WALLET_OUTBOX_MAX_AGE_MS
+WALLET_OUTBOX_PROCESSING_TIMEOUT_MS
+WALLET_OUTBOX_BATCH_SIZE
+WALLET_OUTBOX_WORKER_FIXED_DELAY_MS
+WALLET_OUTBOX_WORKER_INITIAL_DELAY_MS
 ```
 
 Payment Service:
@@ -216,17 +230,34 @@ GATEWAY_WEBHOOK_SECRET
 MOCK_GATEWAY_TIMEOUT_DELAY_MS
 ```
 
+Notification Service:
+
+```text
+KAFKA_BOOTSTRAP_SERVERS
+NOTIFICATION_AUTH_INTERNAL_TOKEN
+NOTIFICATION_AUTH_TIMEOUT_MS
+NOTIFICATION_DB_PASSWORD
+NOTIFICATION_DB_USERNAME
+NOTIFICATION_MAIL_FROM_ADDRESS
+NOTIFICATION_MAIL_HOST
+NOTIFICATION_MAIL_PORT
+```
+
 Compose wires these service URLs directly:
 
 ```text
 PAYMENT_GATEWAY_TOP_UP_URL=http://mock-gateway-service:8084/mock-gateway/top-up
 AUTH_WALLET_PROVISION_URL=http://wallet-service:8082/internal/wallets/provision
 PAYMENT_WEBHOOK_URL=http://payment-service:8083/payments/webhook/gateway
+NOTIFICATION_AUTH_USER_LOOKUP_URL=http://auth-service:8081/internal/users
 ```
 
 The payment-to-wallet top-up credit is delivered asynchronously over Kafka
-(`wallet.credit.commands`), so both services need `KAFKA_BOOTSTRAP_SERVERS`. See
-`docs/event-contracts.md` for the event contract and delivery design.
+(`wallet.credit.commands`), so both services need `KAFKA_BOOTSTRAP_SERVERS`.
+Transfer and top-up result notifications are delivered the same way over
+`wallet.transfer.*` and `payment.topup.*` to the notification service, which
+sends emails viewable in Mailpit at `http://localhost:8025`. See
+`docs/event-contracts.md` for the event contracts and delivery design.
 
 Secret alignment required for local workflows:
 
